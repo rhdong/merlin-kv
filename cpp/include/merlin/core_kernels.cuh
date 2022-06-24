@@ -24,6 +24,68 @@
 namespace nv {
 namespace merlin {
 
+/* 2GB per slice by default.*/
+constexpr size_t DEFAULT_BYTES_PER_SLICE = (2 * 1024 * 1024 * 1024ul);
+
+/* Initial the buckets with index from start to end. */
+template <class K, class V, class M, size_t DIM>
+void init_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
+  /* As testing results show us, when the number of buckets is greater than
+   * the 4 million the performance will drop significantly, we believe the
+   * to many pinned memory allocation causes this issue, so we change the
+   * strategy to allocate some memory slices whose size is not greater than
+   * 64GB, and put the buckets pointer point to the slices.
+   */
+  assert(start < end &&
+         "merlin-kv: init_buckets, start should be less than end!");
+  size_t buckets_num = end - start;
+  const size_t total_size_of_vectors =
+      buckets_num * (*table)->buckets_size * sizeof(V);
+  const size_t num_of_memory_slices =
+      1 + (total_size_of_vectors - 1) / (*table)->bytes_per_slice;
+  size_t num_of_buckets_in_one_slice =
+      (*table)->bytes_per_slice / ((*table)->buckets_size * sizeof(V));
+  size_t num_of_allocated_buckets = 0;
+
+  realloc_managed<V **>(
+      &((*table)->slices), (*table)->num_of_memory_slices * sizeof(V *),
+      ((*table)->num_of_memory_slices + num_of_memory_slices) * sizeof(V *));
+
+  for (size_t i = (*table)->num_of_memory_slices;
+       i < (*table)->num_of_memory_slices + num_of_memory_slices; i++) {
+    if (i == num_of_memory_slices - 1) {
+      num_of_buckets_in_one_slice = buckets_num - num_of_allocated_buckets;
+    }
+
+    if ((*table)->vector_on_gpu) {
+      CUDA_CHECK(cudaMalloc(
+          &((*table)->slices[i]),
+          num_of_buckets_in_one_slice * (*table)->buckets_size * sizeof(V)));
+    } else {
+      CUDA_CHECK(cudaMallocHost(
+          &((*table)->slices[i]),
+          num_of_buckets_in_one_slice * (*table)->buckets_size * sizeof(V),
+          cudaHostRegisterMapped));
+    }
+    for (int j = 0; j < num_of_buckets_in_one_slice; j++) {
+      (*table)->buckets[start + num_of_allocated_buckets + j].vectors =
+          (*table)->slices[i] + j * (*table)->buckets_size;
+    }
+    num_of_allocated_buckets += num_of_buckets_in_one_slice;
+  }
+  (*table)->num_of_memory_slices += num_of_memory_slices;
+  for (int i = start; i < end; i++) {
+    CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].keys),
+                          (*table)->buckets_size * sizeof(K)));
+    CUDA_CHECK(cudaMemset((*table)->buckets[i].keys, 0xFF,
+                          (*table)->buckets_size * sizeof(K)));
+    CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].metas),
+                          (*table)->buckets_size * sizeof(M)));
+    CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].cache),
+                          (*table)->cache_size * sizeof(V)));
+  }
+}
+
 /* Initial a Table struct.
 
    K: The key type
@@ -34,94 +96,59 @@ namespace merlin {
    DIM: Vector dimension.
 */
 template <class K, class V, class M, size_t DIM>
-void create_table(Table<K, V, M, DIM> **table, uint64_t capacity = 134217728,
+void create_table(Table<K, V, M, DIM> **table, uint64_t init_size = 134217728,
+                  uint64_t max_size = std::numeric_limits<uint64_t>::max(),
                   uint64_t cache_size = 0, uint64_t buckets_size = 128,
                   bool vector_on_gpu = false, bool master = true,
-                  size_t bytes_per_slice =
-                      (2 * 1024 * 1024 * 1024ul) /* 2GB per slice by default.*/
-) {
+                  size_t bytes_per_slice = DEFAULT_BYTES_PER_SLICE) {
   CUDA_CHECK(cudaMallocManaged((void **)table, sizeof(Table<K, V, M, DIM>)));
+  CUDA_CHECK(cudaMemset(*table, 0, sizeof(Table<K, V, M, DIM>)));
   (*table)->buckets_size = buckets_size;
+  (*table)->bytes_per_slice = bytes_per_slice;
+  (*table)->max_size = max_size;
+
   (*table)->buckets_num = 1;
-  while ((*table)->buckets_num * (*table)->buckets_size < capacity) {
+  while ((*table)->buckets_num * (*table)->buckets_size < init_size) {
     (*table)->buckets_num *= 2;
   }
-  std::cout << "[create_table] requested capacity=" << capacity
+  std::cout << "[create_table] init requested capacity=" << init_size
             << ", real capacity="
             << (*table)->buckets_num * (*table)->buckets_size << std::endl;
   (*table)->capacity = (*table)->buckets_num * (*table)->buckets_size;
   (*table)->cache_size = 0;
   (*table)->vector_on_gpu = vector_on_gpu;
   (*table)->primary_table = master;
+
+  CUDA_CHECK(cudaMalloc((void **)&((*table)->locks),
+                        (*table)->buckets_num * sizeof(unsigned int)));
+  CUDA_CHECK(cudaMemset((*table)->locks, 0,
+                        (*table)->buckets_num * sizeof(unsigned int)));
+
   CUDA_CHECK(
       cudaMallocManaged((void **)&((*table)->buckets),
                         (*table)->buckets_num * sizeof(Bucket<K, V, M, DIM>)));
   CUDA_CHECK(cudaMemset((*table)->buckets, 0,
                         (*table)->buckets_num * sizeof(Bucket<K, V, M, DIM>)));
 
-  CUDA_CHECK(cudaMalloc((void **)&((*table)->locks),
-                        (*table)->buckets_num * sizeof(int)));
-  CUDA_CHECK(cudaMemset((*table)->locks, 0,
-                        (*table)->buckets_num * sizeof(unsigned int)));
+  init_buckets<K, V, M, DIM>(table, 0, (*table)->buckets_num);
+}
 
-  /* As testing results show us, when the number of buckets is greater than
-   * the 4 million the performance will drop significantly, we believe the
-   * to many pinned memory allocation causes this issue, so we change the
-   * strategy to allocate some memory slices whose size is not greater than
-   * 64GB, and put the buckets pointer point to the slices.
-   */
-  const size_t total_size_of_vectors =
-      (*table)->buckets_num * (*table)->buckets_size * sizeof(V);
-  const size_t num_of_memory_slices =
-      1 + (total_size_of_vectors - 1) / bytes_per_slice;
-  size_t num_of_buckets_in_one_slice =
-      bytes_per_slice /
-      ((*table)->buckets_size * sizeof(V));  // 64GB for one slice.
-  size_t num_of_allocated_buckets = 0;
+/* Double the capacity on storage, must be followed by calling the rehash_kernel. */
+template <class K, class V, class M, size_t DIM>
+void double_capacity(Table<K, V, M, DIM> **table) {
+  realloc<unsigned int *>(&((*table)->locks),
+                          (*table)->buckets_num * sizeof(unsigned int),
+                          (*table)->buckets_num * sizeof(unsigned int) * 2);
+  realloc_managed<Bucket<K, V, M, DIM> *>(
+      &((*table)->buckets),
+      (*table)->buckets_num * sizeof(Bucket<K, V, M, DIM>),
+      (*table)->buckets_num * sizeof(Bucket<K, V, M, DIM>) * 2);
 
-  (*table)->num_of_memory_slices = num_of_memory_slices;
-  CUDA_CHECK(cudaMallocManaged((void **)&((*table)->vectors),
-                               num_of_memory_slices * sizeof(V *)));
-  CUDA_CHECK(
-      cudaMemset((*table)->vectors, 0, num_of_memory_slices * sizeof(V *)));
+  init_buckets<K, V, M, DIM>(table, (*table)->buckets_num,
+                             (*table)->buckets_num * 2);
 
-  std::cout << "num_of_memory_slices=" << num_of_memory_slices << std::endl;
-  for (size_t i = 0; i < num_of_memory_slices; i++) {
-    if (i == num_of_memory_slices - 1) {
-      num_of_buckets_in_one_slice =
-          (*table)->buckets_num - num_of_allocated_buckets;
-    }
-    std::cout << " - num_of_buckets_in_one_slice="
-              << num_of_buckets_in_one_slice << " allocate size="
-              << num_of_buckets_in_one_slice * (*table)->buckets_size *
-                     sizeof(V)
-              << std::endl;
-    if ((*table)->vector_on_gpu) {
-      CUDA_CHECK(cudaMalloc(
-          &((*table)->vectors[i]),
-          num_of_buckets_in_one_slice * (*table)->buckets_size * sizeof(V)));
-    } else {
-      CUDA_CHECK(cudaMallocHost(
-          &((*table)->vectors[i]),
-          num_of_buckets_in_one_slice * (*table)->buckets_size * sizeof(V),
-          cudaHostRegisterMapped));
-    }
-    for (int j = 0; j < num_of_buckets_in_one_slice; j++) {
-      (*table)->buckets[j + num_of_allocated_buckets].vectors =
-          (*table)->vectors[i] + j * (*table)->buckets_size;
-    }
-    num_of_allocated_buckets += num_of_buckets_in_one_slice;
-  }
-  for (int i = 0; i < (*table)->buckets_num; i++) {
-    CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].keys),
-                          (*table)->buckets_size * sizeof(K)));
-    CUDA_CHECK(cudaMemset((*table)->buckets[i].keys, 0xFF,
-                          (*table)->buckets_size * sizeof(K)));
-    CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].metas),
-                          (*table)->buckets_size * sizeof(M)));
-    CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].cache),
-                          (*table)->cache_size * sizeof(V)));
-  }
+  (*table)->capacity *= 2;
+  (*table)->buckets_num *= 2;
 }
 
 /* free all of the resource of a Table. */
@@ -135,16 +162,48 @@ void destroy_table(Table<K, V, M, DIM> **table) {
 
   for (int i = 0; i < (*table)->num_of_memory_slices; i++) {
     if ((*table)->vector_on_gpu) {
-      CUDA_CHECK(cudaFree((*table)->vectors[i]));
+      CUDA_CHECK(cudaFree((*table)->slices[i]));
     } else {
-      CUDA_CHECK(cudaFreeHost((*table)->vectors[i]));
+      CUDA_CHECK(cudaFreeHost((*table)->slices[i]));
     }
   }
 
-  CUDA_CHECK(cudaFree((*table)->vectors));
+  CUDA_CHECK(cudaFree((*table)->slices));
   CUDA_CHECK(cudaFree((*table)->locks));
   CUDA_CHECK(cudaFree((*table)->buckets));
   CUDA_CHECK(cudaFree(*table));
+}
+
+template <class K, class V, class M, size_t DIM>
+__global__ void rehash_kernel(const Table<K, V, M, DIM> *__restrict table,
+                              int N) {
+  int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  const uint64_t buckets_num = table->buckets_num;
+  const uint64_t buckets_size = table->buckets_size;
+  if (tid < N) {
+    int bkt_idx = tid / buckets_size;
+    int key_idx = tid % buckets_size;
+    Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
+    K target_key = bucket->keys[key_idx];
+    if (target_key != EMPTY_KEY) {
+      K hashed_key = Murmur3HashDevice(target_key);
+      int key_bkt_idx = hashed_key % buckets_num;
+
+      if (key_bkt_idx != bkt_idx) {
+        Bucket<K, V, M, DIM> *new_bucket = &(table->buckets[key_bkt_idx]);
+        atomicExch(&(new_bucket->keys[key_idx]), target_key);
+        atomicExch(&(bucket->keys[key_idx]), EMPTY_KEY);
+
+        atomicExch(&(new_bucket->metas[key_idx].val),
+                   bucket->metas[key_idx].val);
+        atomicExch(&(bucket->metas[key_idx].val), 0ul);
+        for (int i = 0; i < DIM; i++) {
+          new_bucket->vectors[key_idx].value[i] =
+              bucket->vectors[key_idx].value[i];
+        }
+      }
+    }
+  }
 }
 
 /* Write the N data from src to each address in *dst,
@@ -860,7 +919,7 @@ __global__ void clear_kernel(Table<K, V, M, DIM> *__restrict table, int N) {
     atomicExch((K *)&(bucket->keys[key_idx]), EMPTY_KEY);
 
     /// M_LANGER: Without lock, potential race condition here?
-    atomicExch((K *)&(bucket->metas[key_idx].val), MAX_META);
+    atomicExch((K *)&(bucket->metas[key_idx].val), EMPTY_META);
     if (key_idx == 0) {
       atomicExch(&(bucket->size), 0);
     }
@@ -888,7 +947,7 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
     K old_key = atomicCAS((K *)&bucket->keys[key_pos], target_key, EMPTY_KEY);
     if (old_key == target_key) {
       /// M_LANGER: Without lock, potential race condition here?
-      atomicExch((K *)&(bucket->metas[key_pos].val), MAX_META);
+      atomicExch((K *)&(bucket->metas[key_pos].val), EMPTY_META);
       atomicDec((unsigned int *)&(bucket->size), buckets_size);
     }
   }

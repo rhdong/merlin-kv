@@ -76,7 +76,7 @@ template <class T>
 using ValueType = ValueArrayBase<T>;
 
 int test_main() {
-  constexpr uint64_t INIT_SIZE = 128 * 1024 * 1024ul;
+  constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024ul;
   constexpr uint64_t KEY_NUM = 1 * 1024 * 1024ul;
   constexpr uint64_t TEST_TIMES = 1;
   constexpr uint64_t DIM = 64;
@@ -92,7 +92,7 @@ int test_main() {
   Vector *h_vectors;
   bool *h_found;
 
-  std::unique_ptr<Table> table_ = std::make_unique<Table>(INIT_SIZE, 0, 128);
+  std::unique_ptr<Table> table_ = std::make_unique<Table>(INIT_SIZE);
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));          // 8MB
   cudaMallocHost(&h_metas, KEY_NUM * sizeof(M));         // 8MB
@@ -170,6 +170,14 @@ int test_main() {
     auto end_upsert = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff_upsert = end_upsert - start_upsert;
 
+    auto start_rehash = std::chrono::steady_clock::now();
+    table_->increase_capacity(table_->get_capacity() * 2, stream);
+    auto end_rehash = std::chrono::steady_clock::now();
+
+    total_size = table_->get_size(stream);
+    std::cout << "after increase_capacity: total_size = " << total_size
+              << std::endl;
+
     cudaMemset(d_vectors, 2, KEY_NUM * sizeof(Vector));
     table_->upsert(d_keys, reinterpret_cast<float *>(d_vectors), d_metas,
                    KEY_NUM, stream);
@@ -199,9 +207,11 @@ int test_main() {
 
     std::chrono::duration<double> diff_lookup = end_lookup - start_lookup;
     std::chrono::duration<double> diff_accum = end_accum - start_accum;
+    std::chrono::duration<double> diff_rehash = end_rehash - start_rehash;
     printf("[timing] upsert=%.2fms\n", diff_upsert.count() * 1000);
     printf("[timing] lookup=%.2fms\n", diff_lookup.count() * 1000);
     printf("[timing] accum=%.2fms\n", diff_accum.count() * 1000);
+    printf("[timing] rehash=%.2fms\n", diff_rehash.count() * 1000);
   }
   cudaStreamDestroy(stream);
 
