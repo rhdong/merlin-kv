@@ -28,15 +28,22 @@ namespace nv {
 namespace merlin {
 
 /**
- * The basic value type in Merlin HKVS.
+ * The basic value type in Merlin-KV.
  *
  * @tparam V type of the Vector's item type, which should be basic types of
  * C++/CUDA.
  * @tparam DIM dimension of the vector.
  */
-template <class V, size_t DIM>
-struct Vector {
-  V value[DIM];
+template <class ELEMENT, size_t DIMENSION>
+class Vector {
+ public:
+  using mapped_type = ELEMENT;
+  static constexpr size_t DIM = DIMENSION;
+  mapped_type values[DIM];
+  mapped_type &operator[](size_t index) {
+    assert(index < DIM && "Vector index out of bound, exiting!");
+    return values[index];
+  }
 };
 
 /**
