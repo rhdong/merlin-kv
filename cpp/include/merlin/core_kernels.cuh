@@ -133,7 +133,8 @@ void create_table(Table<K, V, M, DIM> **table, uint64_t init_size = 134217728,
   init_buckets<K, V, M, DIM>(table, 0, (*table)->buckets_num);
 }
 
-/* Double the capacity on storage, must be followed by calling the rehash_kernel. */
+/* Double the capacity on storage, must be followed by calling the
+ * rehash_kernel. */
 template <class K, class V, class M, size_t DIM>
 void double_capacity(Table<K, V, M, DIM> **table) {
   realloc<unsigned int *>(&((*table)->locks),

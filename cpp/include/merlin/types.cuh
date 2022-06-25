@@ -32,8 +32,8 @@ template <class K, class V, class M, size_t DIM>
 struct Bucket {
   K *keys;         // HBM
   Meta<M> *metas;  // HBM
-  // V *cache;        // HBM(optional)
-  V *vectors;  // Pinned memory or HBM
+  V *cache;        // HBM(optional)
+  V *vectors;      // Pinned memory or HBM
 
   /* For upsert_kernel without user specified metas
      recording the current meta, the cur_meta will
@@ -45,6 +45,9 @@ struct Bucket {
      meta and its pos in the bucket. */
   M min_meta;
   int min_pos;
+
+  /* The number of saved key-value in this buckets */
+  int size;
 };
 
 template <class K, class V, class M, size_t DIM>

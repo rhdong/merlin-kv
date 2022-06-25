@@ -195,7 +195,9 @@ int test_main() {
                   KEY_NUM, stream, false);
     auto end_accum = std::chrono::steady_clock::now();
 
+    auto start_size = std::chrono::steady_clock::now();
     total_size = table_->get_size(stream);
+    auto end_size = std::chrono::steady_clock::now();
     std::cout << "after accum: total_size = " << total_size << std::endl;
 
     table_->clear(stream);
@@ -208,10 +210,12 @@ int test_main() {
     std::chrono::duration<double> diff_lookup = end_lookup - start_lookup;
     std::chrono::duration<double> diff_accum = end_accum - start_accum;
     std::chrono::duration<double> diff_rehash = end_rehash - start_rehash;
+    std::chrono::duration<double> diff_size = end_size - start_size;
     printf("[timing] upsert=%.2fms\n", diff_upsert.count() * 1000);
     printf("[timing] lookup=%.2fms\n", diff_lookup.count() * 1000);
     printf("[timing] accum=%.2fms\n", diff_accum.count() * 1000);
     printf("[timing] rehash=%.2fms\n", diff_rehash.count() * 1000);
+    printf("[timing] size=%.2fms\n", diff_size.count() * 1000);
   }
   cudaStreamDestroy(stream);
 
