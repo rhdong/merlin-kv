@@ -80,9 +80,11 @@ void init_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
     CUDA_CHECK(cudaMemset((*table)->buckets[i].keys, 0xFF,
                           (*table)->buckets_size * sizeof(K)));
     CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].metas),
-                          (*table)->buckets_size * sizeof(M)));
-    CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].cache),
-                          (*table)->cache_size * sizeof(V)));
+                          (*table)->buckets_size * sizeof(Meta<M>)));
+    if ((*table)->cache_size > 0) {
+      CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].cache),
+                            (*table)->cache_size * sizeof(V)));
+    }
   }
 }
 
@@ -111,7 +113,7 @@ void create_table(Table<K, V, M, DIM> **table, uint64_t init_size = 134217728,
   while ((*table)->buckets_num * (*table)->buckets_size < init_size) {
     (*table)->buckets_num *= 2;
   }
-  std::cout << "[create_table] init requested capacity=" << init_size
+  std::cout << "[merlin-kv] init requested capacity=" << init_size
             << ", real capacity="
             << (*table)->buckets_num * (*table)->buckets_size << std::endl;
   (*table)->capacity = (*table)->buckets_num * (*table)->buckets_size;
@@ -158,7 +160,9 @@ void destroy_table(Table<K, V, M, DIM> **table) {
   for (int i = 0; i < (*table)->buckets_num; i++) {
     CUDA_CHECK(cudaFree((*table)->buckets[i].keys));
     CUDA_CHECK(cudaFree((*table)->buckets[i].metas));
-    CUDA_CHECK(cudaFree((*table)->buckets[i].cache));
+    if ((*table)->cache_size > 0) {
+      CUDA_CHECK(cudaFree((*table)->buckets[i].cache));
+    }
   }
 
   for (int i = 0; i < (*table)->num_of_memory_slices; i++) {
@@ -368,7 +372,7 @@ template <class K, class V, class M, size_t DIM>
 __inline__ __device__ void find_in_bucket(const Bucket<K, V, M, DIM> *bucket,
                                           const uint64_t buckets_size,
                                           const K &insert_key, int *key_pos,
-                                          bool *found) {
+                                          bool *found, bool *empty) {
   for (int i = 0; i < buckets_size; i++) {
     if (bucket->keys[i] == insert_key) {
       *found = true;
@@ -379,6 +383,7 @@ __inline__ __device__ void find_in_bucket(const Bucket<K, V, M, DIM> *bucket,
   for (int i = 0; i < buckets_size; i++) {
     K old_key = atomicCAS(&(bucket->keys[i]), EMPTY_KEY, insert_key);
     if (old_key == EMPTY_KEY) {
+      *empty = true;
       *key_pos = i;
       break;
     }
@@ -389,7 +394,8 @@ template <class K, class V, class M, size_t DIM>
 __inline__ __device__ void find_in_bucket(const Bucket<K, V, M, DIM> *bucket,
                                           const uint64_t buckets_size,
                                           const K &insert_key, int *key_pos,
-                                          bool *found, const bool existed) {
+                                          bool *found, bool *empty,
+                                          const bool existed) {
   for (int i = 0; i < buckets_size; i++) {
     if (bucket->keys[i] == insert_key) {
       *found = true;
@@ -401,6 +407,7 @@ __inline__ __device__ void find_in_bucket(const Bucket<K, V, M, DIM> *bucket,
   for (int i = 0; i < buckets_size; i++) {
     K old_key = atomicCAS(&(bucket->keys[i]), EMPTY_KEY, insert_key);
     if (old_key == EMPTY_KEY) {
+      *empty = true;
       *key_pos = i;
       break;
     }
@@ -566,7 +573,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
         key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
         atomicExch(&(bucket->keys[key_pos]), insert_key);
-        M cur_meta = atomicAdd(&(bucket->cur_meta), 1);
+        M cur_meta = 1 + atomicAdd(&(bucket->cur_meta), 1);
         atomicExch(&(bucket->metas[key_pos].val), cur_meta);
 
         refresh_bucket_meta<K, V, M, DIM>(bucket, buckets_size);
@@ -588,6 +595,7 @@ __global__ void upsert_allow_duplicate_keys_kernel(
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   int key_pos = -1;
   bool found = false;
+  bool empty = false;
 
   if (tid < N) {
     int key_idx = tid;
@@ -601,10 +609,8 @@ __global__ void upsert_allow_duplicate_keys_kernel(
       if (atomicExch(&(table->locks[bkt_idx]), 1u) == 0u) {
         Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
         find_in_bucket<K, V, M, DIM>(bucket, buckets_size, insert_key, &key_pos,
-                                     &found);
-
-        if (metas[key_idx] >= bucket->min_meta || found ||
-            bucket->size < buckets_size) {
+                                     &found, &empty);
+        if (metas[key_idx] >= bucket->min_meta || found || empty) {
           if (!found) {
             key_pos = key_pos == -1 ? bucket->min_pos : key_pos;
             atomicAdd(&(bucket->size), 1);
@@ -612,12 +618,11 @@ __global__ void upsert_allow_duplicate_keys_kernel(
           }
           atomicExch(&(bucket->keys[key_pos]), insert_key);
           atomicExch(&(bucket->metas[key_pos].val), metas[key_idx]);
-
           refresh_bucket_meta<K, V, M, DIM>(bucket, buckets_size);
           atomicCAS((uint64_t *)&(vectors[tid]), (uint64_t)(nullptr),
                     (uint64_t)((V *)(bucket->vectors) + key_pos));
-          atomicExch(&(src_offset[key_idx]), key_idx);
         }
+        atomicExch(&(src_offset[key_idx]), key_idx);
         release_lock = true;
         atomicExch(&(table->locks[bkt_idx]), 0u);
       }
@@ -637,6 +642,7 @@ __global__ void upsert_allow_duplicate_keys_kernel(
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   int key_pos = -1;
   bool found = false;
+  bool empty = false;
 
   if (tid < N) {
     int key_idx = tid;
@@ -650,22 +656,20 @@ __global__ void upsert_allow_duplicate_keys_kernel(
       if (atomicExch(&(table->locks[bkt_idx]), 1u) == 0u) {
         Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
         find_in_bucket<K, V, M, DIM>(bucket, buckets_size, insert_key, &key_pos,
-                                     &found);
-        if (found || bucket->size < buckets_size) {
-          if (!found) {
-            key_pos = key_pos == -1 ? bucket->min_pos : key_pos;
-            atomicAdd(&(bucket->size), 1);
-            atomicMin(&(bucket->size), buckets_size);
-          }
-          atomicExch(&(bucket->keys[key_pos]), insert_key);
-          M cur_meta = atomicAdd(&(bucket->cur_meta), 1);
-          atomicExch(&(bucket->metas[key_pos].val), cur_meta);
-
-          refresh_bucket_meta<K, V, M, DIM>(bucket, buckets_size);
-          atomicCAS((uint64_t *)&(vectors[tid]), (uint64_t)(nullptr),
-                    (uint64_t)((V *)(bucket->vectors) + key_pos));
-          atomicExch(&(src_offset[key_idx]), key_idx);
+                                     &found, &empty);
+        if (!found) {
+          key_pos = key_pos == -1 ? bucket->min_pos : key_pos;
+          atomicAdd(&(bucket->size), 1);
+          atomicMin(&(bucket->size), buckets_size);
         }
+        atomicExch(&(bucket->keys[key_pos]), insert_key);
+        M cur_meta = 1 + atomicAdd(&(bucket->cur_meta), 1);
+        atomicExch(&(bucket->metas[key_pos].val), cur_meta);
+
+        refresh_bucket_meta<K, V, M, DIM>(bucket, buckets_size);
+        atomicCAS((uint64_t *)&(vectors[tid]), (uint64_t)(nullptr),
+                  (uint64_t)((V *)(bucket->vectors) + key_pos));
+        atomicExch(&(src_offset[key_idx]), key_idx);
         release_lock = true;
         atomicExch(&(table->locks[bkt_idx]), 0u);
       }
@@ -710,7 +714,7 @@ __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
         if (found == existed[key_idx]) {
           key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
           atomicExch(&(bucket->keys[key_pos]), insert_key);
-          M cur_meta = atomicAdd(&(bucket->cur_meta), 1);
+          M cur_meta = 1 + atomicAdd(&(bucket->cur_meta), 1);
           atomicExch(&(bucket->metas[key_pos].val), cur_meta);
 
           refresh_bucket_meta<K, V, M, DIM>(bucket, buckets_size);
@@ -733,6 +737,7 @@ __global__ void accum_allow_duplicate_keys_kernel(
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   int key_pos = -1;
   bool found = false;
+  bool empty = false;
 
   if (tid < N) {
     int key_idx = tid;
@@ -746,17 +751,16 @@ __global__ void accum_allow_duplicate_keys_kernel(
       if (atomicExch(&(table->locks[bkt_idx]), 1u) == 0u) {
         Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
         find_in_bucket<K, V, M, DIM>(bucket, buckets_size, insert_key, &key_pos,
-                                     &found, existed[key_idx]);
+                                     &found, &empty, existed[key_idx]);
         now_exists[key_idx] = found;
-        if (found == existed[key_idx] &&
-            (found || bucket->size < buckets_size)) {
+        if (found == existed[key_idx]) {
           if (!found) {
             key_pos = key_pos == -1 ? bucket->min_pos : key_pos;
             atomicAdd(&(bucket->size), 1);
             atomicMin(&(bucket->size), buckets_size);
           }
           atomicExch(&(bucket->keys[key_pos]), insert_key);
-          M cur_meta = atomicAdd(&(bucket->cur_meta), 1);
+          M cur_meta = 1 + atomicAdd(&(bucket->cur_meta), 1);
           atomicExch(&(bucket->metas[key_pos].val), cur_meta);
 
           refresh_bucket_meta<K, V, M, DIM>(bucket, buckets_size);
