@@ -57,7 +57,7 @@ void init_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
       num_of_buckets_in_one_slice = buckets_num - num_of_allocated_buckets;
     }
 
-    if ((*table)->vector_on_gpu) {
+    if ((*table)->vector_on_gpu || i < (*table)->num_of_slices_on_hbm) {
       CUDA_CHECK(cudaMalloc(
           &((*table)->slices[i]),
           num_of_buckets_in_one_slice * (*table)->buckets_size * sizeof(V)));
@@ -132,6 +132,19 @@ void create_table(Table<K, V, M, DIM> **table, uint64_t init_size = 134217728,
   CUDA_CHECK(cudaMemset((*table)->buckets, 0,
                         (*table)->buckets_num * sizeof(Bucket<K, V, M, DIM>)));
 
+  size_t free_hbm;
+  size_t total_hbm;
+  CUDA_CHECK(cudaMemGetInfo(&free_hbm, &total_hbm));
+
+  if (free_hbm > (*table)->capacity * (sizeof(K) + sizeof(Meta<M>))) {
+    free_hbm -= (*table)->capacity * (sizeof(K) + sizeof(Meta<M>));
+    (*table)->num_of_slices_on_hbm =
+        free_hbm * 0.8 / (DEFAULT_BYTES_PER_SLICE * 1.0);
+  }
+
+  std::cout << "[merlin-kv] free HBM=" << free_hbm
+            << ", num_of_slices_on_hbm=" << (*table)->num_of_slices_on_hbm
+            << std::endl;
   init_buckets<K, V, M, DIM>(table, 0, (*table)->buckets_num);
 }
 
@@ -157,6 +170,8 @@ void double_capacity(Table<K, V, M, DIM> **table) {
 /* free all of the resource of a Table. */
 template <class K, class V, class M, size_t DIM>
 void destroy_table(Table<K, V, M, DIM> **table) {
+  cudaPointerAttributes attr;
+
   for (int i = 0; i < (*table)->buckets_num; i++) {
     CUDA_CHECK(cudaFree((*table)->buckets[i].keys));
     CUDA_CHECK(cudaFree((*table)->buckets[i].metas));
@@ -166,7 +181,8 @@ void destroy_table(Table<K, V, M, DIM> **table) {
   }
 
   for (int i = 0; i < (*table)->num_of_memory_slices; i++) {
-    if ((*table)->vector_on_gpu) {
+    CUDA_CHECK(cudaPointerGetAttributes(&attr, (*table)->slices[i]));
+    if (attr.type == cudaMemoryTypeDevice) {
       CUDA_CHECK(cudaFree((*table)->slices[i]));
     } else {
       CUDA_CHECK(cudaFreeHost((*table)->slices[i]));

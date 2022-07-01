@@ -80,7 +80,7 @@ int test_main() {
   constexpr uint64_t KEY_NUM = 1 * 1024 * 1024ul;
   constexpr uint64_t TEST_TIMES = 1;
   constexpr uint64_t DIM = 64;
-  constexpr float target_load_factor = 0.5;
+  constexpr float target_load_factor = 0.75;
 
   using K = uint64_t;
   using M = uint64_t;

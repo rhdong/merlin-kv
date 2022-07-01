@@ -53,11 +53,12 @@ struct Bucket {
 template <class K, class V, class M, size_t DIM>
 struct Table {
   Bucket<K, V, M, DIM> *buckets;
-  unsigned int *locks;            // Write lock for each bucket.
-  V **slices;                     // Handles of the HBM/ HMEM slices.
-  uint64_t bytes_per_slice;       // Size by byte of one slice.
-  uint64_t num_of_memory_slices;  // Number of vectors memory slices.
-  uint64_t capacity = 134217728;  // Initial capacity.
+  unsigned int *locks;                // Write lock for each bucket.
+  V **slices;                         // Handles of the HBM/ HMEM slices.
+  uint64_t bytes_per_slice;           // Size by byte of one slice.
+  uint64_t num_of_memory_slices;      // Number of vectors memory slices.
+  uint64_t num_of_slices_on_hbm = 0;  // Number of slices allocated on HBM.
+  uint64_t capacity = 134217728;      // Initial capacity.
   uint64_t max_size =
       std::numeric_limits<uint64_t>::max();  // Up limit of the table capacity.
   uint64_t buckets_num;                      // Number of the buckets.
