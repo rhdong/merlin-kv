@@ -56,6 +56,7 @@ struct Table {
   V **slices;                   // Handles of the HBM/ HMEM slices.
   size_t bytes_per_slice;       // Size by byte of one slice.
   size_t num_of_memory_slices;  // Number of vectors memory slices.
+  size_t num_of_slices_on_hbm = 0;  // Number of slices allocated on HBM.
   size_t capacity = 134217728;  // Initial capacity.
   size_t max_size =
       std::numeric_limits<uint64_t>::max();  // Up limit of the table capacity.
