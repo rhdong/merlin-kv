@@ -125,7 +125,7 @@ os.environ['CUDA_VISIEBLE_DEVICES'] = device_id
 test_list = []
 for dim, test_times, items_num in \
     itertools.product(
-      [128],  [1, ], [1024, ]):
+      [128],  [1, ], [1024 * 1024, ]):
   # [8, 64, 128],  [20, ], [1024, 16384, 131072, 1048576]):
   maxval = 0xFFFFFFFFFFFF
 
