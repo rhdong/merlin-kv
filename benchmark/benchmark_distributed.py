@@ -63,7 +63,7 @@ def one_test(dim, items_num, device, test_times, maxval):
 
       ids_partitions, remote_sizes, gather_indices = make_partitions(ids)
       lookup_result = kv.lookup(ids)
-      # lookup_result = tf.reshape(lookup_result, shape=[-1, dim])
+      lookup_result = tf.reshape(lookup_result, shape=[items_num, dim])
       lookup_result, _ = hvd.alltoall(lookup_result, splits=remote_sizes)
 
       recover_shape = tf.concat((tf.shape(ids, out_type=tf.int64), (dim,)),
