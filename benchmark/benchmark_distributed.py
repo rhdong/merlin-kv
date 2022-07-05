@@ -38,20 +38,6 @@ def stitch(ids, lookup_result, remote_sizes, gather_indices, dim):
   return lookup_result
 
 
-def embedding_lookup_dim1(ids, dim):
-
-  ids_partitions, remote_sizes, gather_indices = make_partitions(ids)
-  lookup_result, trainable = lookup_fn(reloc_ids)
-  lookup_result, _ = hvd.alltoall(lookup_result, splits=remote_sizes)
-
-  recover_shape = tf.concat((tf.shape(ids, out_type=tf.int64), (dim,)), axis=0)
-  gather_indices = tf.concat(gather_indices, axis=0)
-
-  lookup_result = tf.scatter_nd(gather_indices, lookup_result, recover_shape)
-
-  return lookup_result
-
-
 def one_test(dim, items_num, device, test_times, maxval):
   sess_config = tf.ConfigProto(intra_op_parallelism_threads=0,
                                inter_op_parallelism_threads=0)
@@ -77,7 +63,7 @@ def one_test(dim, items_num, device, test_times, maxval):
 
       ids_partitions, remote_sizes, gather_indices = make_partitions(ids)
       lookup_result = kv.lookup(ids)
-      lookup_result = tf.reshape(lookup_result, shape=[-1, dim])
+      # lookup_result = tf.reshape(lookup_result, shape=[-1, dim])
       lookup_result, _ = hvd.alltoall(lookup_result, splits=remote_sizes)
 
       recover_shape = tf.concat((tf.shape(ids, out_type=tf.int64), (dim,)),
