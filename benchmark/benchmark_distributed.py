@@ -88,10 +88,9 @@ def one_test(dim, items_num, device, test_times, maxval):
     # for _ in range(test_times):
     #   sess.run(insert_op)
     insert_time = (time.process_time() - start_time) / test_times - random_time
-    sess.run(lookup_op)
     start_time = time.process_time()
-    # for _ in range(test_times):
-    #   sess.run(lookup_op)
+    for _ in range(test_times):
+      sess.run(lookup_op)
     lookup_time = (time.process_time() - start_time) / test_times - random_time
     table_size = sess.run(size_op)
     sess.close()
