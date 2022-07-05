@@ -144,7 +144,7 @@ void create_table(Table<K, V, M, DIM> **table, size_t init_size = 134217728,
   if (free_hbm > (*table)->capacity * (sizeof(K) + sizeof(Meta<M>))) {
     free_hbm -= (*table)->capacity * (sizeof(K) + sizeof(Meta<M>));
     (*table)->num_of_slices_on_hbm =
-        free_hbm * 0.8 / (kDefaultBytesPerSlice * 1.0);
+        free_hbm * 0.0 / (kDefaultBytesPerSlice * 1.0);
   }
 
   std::cout << "[merlin-kv] free HBM=" << free_hbm
