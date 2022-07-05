@@ -38,7 +38,7 @@ def stitch(ids, lookup_result, remote_sizes, gather_indices, dim):
 def one_test(dim, items_num, device, test_times, maxval):
   sess_config = tf.ConfigProto(intra_op_parallelism_threads=0,
                                inter_op_parallelism_threads=0)
-  sess_config.allow_soft_placement = False
+  sess_config.allow_soft_placement = True
   sess_config.gpu_options.allow_growth = True
   sess_config.log_device_placement = False
 
