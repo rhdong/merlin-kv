@@ -53,7 +53,7 @@ def one_test(dim, items_num, device, test_times, maxval):
                               dtype=tf.int64,
                               seed=None,
                               name=None)
-      ids = tf.reshape(ids, shape=[-1, ])
+      ids = tf.reshape(ids, shape=[items_num, ])
       kv = mkv.get_variable("tf_benchmark",
                             tf.int64,
                             tf.float32,
