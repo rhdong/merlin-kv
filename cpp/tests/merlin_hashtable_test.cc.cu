@@ -68,7 +68,7 @@ struct ValueArray {
   V value[DIM];
 };
 
-constexpr uint64_t INIT_SIZE = 32 * 1024 * 1024UL;
+constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024UL;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 1;
 constexpr uint64_t DIM = 64;
@@ -95,7 +95,7 @@ int test_main() {
   bool *h_found;
 
   std::unique_ptr<Table> table_ = std::make_unique<Table>(
-      INIT_SIZE, INIT_SIZE * 32, 0, 128, 0.75, false, nullptr, true, 1024);
+      INIT_SIZE, INIT_SIZE, 0, 128, 0.75, false, nullptr, true, 1024);
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));          // 8MB
   cudaMallocHost(&h_metas, KEY_NUM * sizeof(M));         // 8MB
