@@ -45,8 +45,6 @@ struct Bucket {
      meta and its pos in the bucket. */
   M min_meta;
   int min_pos;
-
-  /* The number of saved key-value in this buckets */
   int size;
 };
 
@@ -54,6 +52,7 @@ template <class K, class V, class M, size_t DIM>
 struct Table {
   Bucket<K, V, M, DIM> *buckets;
   unsigned int *locks;          // Write lock for each bucket.
+  int *buckets_size;            // size of each buckets.
   V **slices;                   // Handles of the HBM/ HMEM slices.
   size_t bytes_per_slice;       // Size by byte of one slice.
   size_t num_of_memory_slices;  // Number of vectors memory slices.
@@ -61,7 +60,7 @@ struct Table {
   size_t max_size =
       std::numeric_limits<uint64_t>::max();  // Up limit of the table capacity.
   size_t buckets_num;                        // Number of the buckets.
-  size_t buckets_size = 128;                 // Volume of each buckets.
+  size_t bucket_max_size = 128;              // Volume of each buckets.
   size_t cache_size = 0;                     // unused
   bool vector_on_gpu = false;                // If the Values are stored on HBM.
   bool primary_table = true;                 // unused
