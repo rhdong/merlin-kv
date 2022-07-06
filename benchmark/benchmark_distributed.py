@@ -7,11 +7,13 @@ from tabulate import tabulate
 tf.compat.v1.disable_v2_behavior()
 
 
-def make_partions(ids):
+def make_partions(ids, embeddings=None):
   if ids.shape.rank != 1:
     raise ValueError(
         f'Expecting rank of ids shape to be 1, but get {ids.shape}.')
-  mask = ids % hvd.size()
+  mask = tf.constant(0x7fffffff, tf.int64)
+  ids_int32 = tf.cast(tf.bitwise.bitwise_and(ids, mask), tf.int32)
+  mask = ids_int32 % hvd.size()
   relocs = []
   gather_indices = []
   for i in range(hvd.size()):
