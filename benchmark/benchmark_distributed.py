@@ -7,9 +7,10 @@ from tabulate import tabulate
 tf.compat.v1.disable_v2_behavior()
 
 
-def relocate_dense_feature_dim1(ids):
+def make_partions(ids):
   if ids.shape.rank != 1:
-    raise ValueError(f'Expecting rank of ids shape to be 1, but get {ids.shape}.')
+    raise ValueError(
+        f'Expecting rank of ids shape to be 1, but get {ids.shape}.')
   mask = ids % hvd.size()
   relocs = []
   gather_indices = []
@@ -50,7 +51,9 @@ def one_test(dim, items_num, device, test_times, maxval):
                               dtype=tf.int64,
                               seed=None,
                               name=None)
-      ids = tf.reshape(ids, shape=[items_num, ])
+      ids = tf.reshape(ids, shape=[
+          items_num,
+      ])
       kv = mkv.get_variable("tf_benchmark",
                             tf.int64,
                             tf.float32,
@@ -58,9 +61,8 @@ def one_test(dim, items_num, device, test_times, maxval):
                             initializer=0.0,
                             dim=dim)
 
-      ids_partitions, remote_sizes, gather_indices = relocate_dense_feature_dim1(ids)
+      ids_partitions, remote_sizes, gather_indices = make_partions(ids)
       lookup_result = kv.lookup(ids_partitions)
-      # lookup_result = tf.reshape(lookup_result, shape=[items_num, dim])
       lookup_result, _ = hvd.alltoall(lookup_result, splits=remote_sizes)
 
       recover_shape = tf.concat((tf.shape(ids, out_type=tf.int64), (dim,)),
