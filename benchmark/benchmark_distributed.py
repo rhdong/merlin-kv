@@ -7,7 +7,7 @@ from tabulate import tabulate
 tf.compat.v1.disable_v2_behavior()
 
 
-def make_partions(ids, embeddings=None):
+def make_partions_for_lookup(ids):
   if ids.shape.rank != 1:
     raise ValueError(
         f'Expecting rank of ids shape to be 1, but get {ids.shape}.')
@@ -25,6 +25,29 @@ def make_partions(ids, embeddings=None):
   relocs_tensor = tf.squeeze(relocs_tensor, axis=1)
   flat_reloc_ids, remote_sizes = hvd.alltoall(relocs_tensor, splits=sizes)
   return flat_reloc_ids, remote_sizes, gather_indices
+
+
+def make_partions_for_insert(ids, embs):
+  if ids.shape.rank != 1:
+    raise ValueError(
+        f'Expecting rank of ids shape to be 1, but get {ids.shape}.')
+  mask = tf.constant(0x7fffffff, tf.int64)
+  ids_int32 = tf.cast(tf.bitwise.bitwise_and(ids, mask), tf.int32)
+  mask = ids_int32 % hvd.size()
+  relocs_ids = []
+  relocs_embs = []
+  gather_indices = []
+  for i in range(hvd.size()):
+    idx = tf.where(tf.math.equal(mask, i))
+    gather_indices.append(idx)
+    relocs_ids.append(tf.gather(ids, idx))
+    relocs_embs.append(tf.gather(embs, idx))
+  sizes = tf.stack([tf.size(r) for r in relocs_ids], axis=0)
+  relocs_ids_tensor = tf.squeeze(tf.concat(relocs_ids, axis=0), axis=1)
+  relocs_embs_tensor = tf.squeeze(tf.concat(relocs_embs, axis=0), axis=1)
+  flat_reloc_ids, remote_sizes = hvd.alltoall(relocs_ids_tensor, splits=sizes)
+  flat_reloc_embs, _ = hvd.alltoall(relocs_embs_tensor, splits=sizes)
+  return flat_reloc_ids, flat_reloc_embs, remote_sizes, gather_indices
 
 
 def stitch(ids, lookup_result, remote_sizes, gather_indices, dim):
@@ -56,6 +79,8 @@ def one_test(dim, items_num, device, test_times, maxval):
       ids = tf.reshape(ids, shape=[
           items_num,
       ])
+      embs = tf.constant([[0.0] * dim] * items_num)
+
       kv = mkv.get_variable("tf_benchmark",
                             tf.int64,
                             tf.float32,
@@ -63,22 +88,23 @@ def one_test(dim, items_num, device, test_times, maxval):
                             initializer=0.0,
                             dim=dim)
 
-      ids_partitions, remote_sizes, gather_indices = make_partions(ids)
+      ids_partitions, remote_sizes, gather_indices = make_partions_for_lookup(
+          ids)
       lookup_result = kv.lookup(ids_partitions)
       lookup_result, _ = hvd.alltoall(lookup_result, splits=remote_sizes)
-
       recover_shape = tf.concat((tf.shape(ids, out_type=tf.int64), (dim,)),
                                 axis=0)
       gather_indices = tf.concat(gather_indices, axis=0)
-
       lookup_op = tf.scatter_nd(gather_indices, lookup_result, recover_shape)
 
-      # default_vals_for_insert = tf.constant([[0.0] * dim] * items_num)
+      # for insert
 
-      # lookup_op = kv.lookup(random_keys)
-      # insert_op = kv.upsert(random_keys,
-      #                       default_vals_for_insert,
-      #                       allow_duplicated_keys=False)
+      ids_partitions, embs_partitions, remote_sizes, gather_indices = make_partions_for_insert(
+          ids, embs)
+
+      insert_op = kv.upsert(ids_partitions,
+                            embs_partitions,
+                            allow_duplicated_keys=False)
       size_op = kv.size()
     sess.run(ids)
     start_time = time.process_time()
@@ -89,8 +115,8 @@ def one_test(dim, items_num, device, test_times, maxval):
     random_time = (time.process_time() - start_time) / test_times
     sess.run(ids)
     start_time = time.process_time()
-    # for _ in range(test_times):
-    #   sess.run(insert_op)
+    for _ in range(test_times):
+      sess.run(insert_op)
     insert_time = (time.process_time() - start_time) / test_times - random_time
     start_time = time.process_time()
     for _ in range(test_times):
