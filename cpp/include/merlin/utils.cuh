@@ -158,7 +158,7 @@ inline uint64_t Murmur3HashHost(const uint64_t& key) {
   return k;
 }
 
-__inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const& key) {
+__forceinline__ __device__ uint64_t Murmur3HashDevice(uint64_t const& key) {
   uint64_t k = key;
   k ^= k >> 33;
   k *= UINT64_C(0xff51afd7ed558ccd);
@@ -168,7 +168,7 @@ __inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const& key) {
   return k;
 }
 
-__inline__ __device__ int64_t Murmur3HashDevice(int64_t const& key) {
+__forceinline__ __device__ int64_t Murmur3HashDevice(int64_t const& key) {
   uint64_t k = uint64_t(key);
   k ^= k >> 33;
   k *= UINT64_C(0xff51afd7ed558ccd);
@@ -178,7 +178,7 @@ __inline__ __device__ int64_t Murmur3HashDevice(int64_t const& key) {
   return int64_t(k);
 }
 
-__inline__ __device__ uint32_t Murmur3HashDevice(uint32_t const& key) {
+__forceinline__ __device__ uint32_t Murmur3HashDevice(uint32_t const& key) {
   uint32_t k = key;
   k ^= k >> 16;
   k *= 0x85ebca6b;
@@ -189,7 +189,7 @@ __inline__ __device__ uint32_t Murmur3HashDevice(uint32_t const& key) {
   return k;
 }
 
-__inline__ __device__ int32_t Murmur3HashDevice(int32_t const& key) {
+__forceinline__ __device__ int32_t Murmur3HashDevice(int32_t const& key) {
   uint32_t k = uint32_t(key);
   k ^= k >> 16;
   k *= 0x85ebca6b;

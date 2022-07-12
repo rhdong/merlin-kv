@@ -56,6 +56,21 @@ void create_random_keys(K *h_keys, M *h_metas, int KEY_NUM) {
 }
 
 template <class K, class M>
+void create_random_keys_without_unique(K *h_keys, M *h_metas, int KEY_NUM,
+                                       K max_key = 100000000) {
+  std::random_device rd;
+  std::mt19937_64 eng(rd());
+  std::uniform_int_distribution<K> distr(0, max_key);
+  int i = 0;
+
+  while (i < KEY_NUM) {
+    h_keys[i] = static_cast<K>(distr(eng));
+    h_metas[i] = getTimestamp();
+    i++;
+  }
+}
+
+template <class K, class M>
 void create_continuous_keys(K *h_keys, M *h_metas, int KEY_NUM, K start = 0) {
   for (K i = 0; i < KEY_NUM; i++) {
     h_keys[i] = start + static_cast<K>(i);
@@ -71,8 +86,8 @@ struct ValueArray {
 constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024UL;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 1;
-constexpr uint64_t DIM = 64;
-constexpr float target_load_factor = 0.50;
+constexpr uint64_t DIM = 4;
+constexpr float target_load_factor = 0.99;
 
 template <class K, class M>
 __forceinline__ __device__ bool erase_if_pred(const K &key, const M &meta) {
@@ -111,7 +126,7 @@ int test_main() {
 
   cudaMemset(h_vectors, 0, KEY_NUM * sizeof(Vector));
 
-  create_random_keys<K, M>(h_keys, h_metas, KEY_NUM);
+  create_random_keys_without_unique<K, M>(h_keys, h_metas, KEY_NUM);
 
   K *d_keys;
   M *d_metas = nullptr;
@@ -143,13 +158,13 @@ int test_main() {
   float cur_load_factor = table_->load_factor();
 
   while (cur_load_factor < target_load_factor) {
-    create_continuous_keys<K, M>(h_keys, h_metas, KEY_NUM, start);
+    create_random_keys_without_unique<K, M>(h_keys, h_metas, KEY_NUM);
     cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
     cudaMemcpy(d_metas, h_metas, KEY_NUM * sizeof(M), cudaMemcpyHostToDevice);
 
     auto start_insert_or_assign = std::chrono::steady_clock::now();
     table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
-                             d_metas, KEY_NUM, false, stream);
+                             KEY_NUM, true, stream);
     auto end_insert_or_assign = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff_insert_or_assign =
         end_insert_or_assign - start_insert_or_assign;
@@ -175,17 +190,27 @@ int test_main() {
 
     std::cout << "before insert_or_assign: total_size = " << total_size
               << std::endl;
+    create_random_keys_without_unique<K, M>(h_keys, h_metas, KEY_NUM);
+    cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_metas, h_metas, KEY_NUM * sizeof(M), cudaMemcpyHostToDevice);
+
     auto start_insert_or_assign = std::chrono::steady_clock::now();
     table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
-                             d_metas, KEY_NUM, false, stream);
+                             KEY_NUM, true, stream);
     auto end_insert_or_assign = std::chrono::steady_clock::now();
 
     total_size = table_->size(stream);
     std::cout << "after 1st insert_or_assign: total_size = " << total_size
               << std::endl;
+    auto start_erase = std::chrono::steady_clock::now();
+    table_->erase(d_keys, KEY_NUM, stream);
+    auto end_erase = std::chrono::steady_clock::now();
+
+    total_size = table_->size(stream);
+    std::cout << "after remove: total_size = " << total_size << std::endl;
 
     auto start_reserve = std::chrono::steady_clock::now();
-    table_->reserve(table_->capacity() * 2, stream);
+    //        table_->reserve(table_->capacity() * 2, stream);
     auto end_reserve = std::chrono::steady_clock::now();
 
     total_size = table_->size(stream);
@@ -236,6 +261,7 @@ int test_main() {
 
     std::chrono::duration<double> diff_insert_or_assign =
         end_insert_or_assign - start_insert_or_assign;
+    std::chrono::duration<double> diff_erase = end_erase - start_erase;
     std::chrono::duration<double> diff_size = end_size - start_size;
     std::chrono::duration<double> diff_find = end_find - start_find;
     std::chrono::duration<double> diff_accum = end_accum - start_accum;
@@ -244,6 +270,7 @@ int test_main() {
     std::chrono::duration<double> diff_clear = end_clear - start_clear;
     printf("[timing] insert_or_assign=%.2fms\n",
            diff_insert_or_assign.count() * 1000);
+    printf("[timing] erase=%.2fms\n", diff_erase.count() * 1000);
     printf("[timing] size=%.2fms\n", diff_size.count() * 1000);
     printf("[timing] reserve=%.2fms\n", diff_reserve.count() * 1000);
     printf("[timing] find=%.2fms\n", diff_find.count() * 1000);
