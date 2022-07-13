@@ -105,7 +105,7 @@ int main() {
   {
 
     uint64_t *d_vals;
-    cudaMalloc((void **)&d_vals, sizeof(uint64_t));
+    cudaMalloc((void **)&d_vals, KEY_NUM * sizeof(uint64_t));
 
     const size_t N = KEY_NUM;
     thrust::device_ptr<uint64_t> dst_ptr_ptr(reinterpret_cast<uint64_t *>(dst_ptr));
