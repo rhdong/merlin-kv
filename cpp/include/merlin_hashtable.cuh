@@ -465,7 +465,7 @@ class HashTable {
     if (len == 0) {
       return;
     }
-//    CUDA_CHECK(cudaMemsetAsync(found, 0, len * sizeof(bool), stream));
+    //    CUDA_CHECK(cudaMemsetAsync(found, 0, len * sizeof(bool), stream));
 
     // Determine bucket locations for reading.
     {

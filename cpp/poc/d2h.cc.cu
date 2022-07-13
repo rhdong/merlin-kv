@@ -1,4 +1,7 @@
 #include <cuda_runtime.h>
+#include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
+#include <thrust/sort.h>
 
 #include <algorithm>
 #include <chrono>
@@ -98,6 +101,12 @@ int main() {
   create_fake_ptr<<<1024, 1024>>>(dst, dst_ptr, d_offset, KEY_NUM);
   std::chrono::time_point<std::chrono::steady_clock> start_test;
   std::chrono::duration<double> diff_test;
+
+  {
+    const size_t N = KEY_NUM;
+    thrust::device_ptr<uint64_t> dst_ptr_ptr(reinterpret_cast<uint64_t *>(dst_ptr));
+    thrust::sort_by_key(dst_ptr_ptr, dst_ptr_ptr + N, thrust::less<uint64_t>());
+  }
 
   cudaDeviceSynchronize();
   start_test = std::chrono::steady_clock::now();
