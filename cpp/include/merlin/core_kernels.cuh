@@ -856,19 +856,20 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
                               bool *__restrict found,
                               int *__restrict dst_offset, size_t N) {
-  size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  size_t t = (blockIdx.x * blockDim.x) + threadIdx.x;
   const size_t buckets_num = table->buckets_num;
   const size_t buckets_size = table->buckets_size;
-  for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
+  if(t < N) { //for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int key_idx = t / buckets_size;
     int key_pos = t % buckets_size;
-    K hashed_key = Murmur3HashDevice(keys[key_idx]);
+    K hashed_key = keys[key_idx];//Murmur3HashDevice(keys[key_idx]);
     int bkt_idx = hashed_key % buckets_num;
     K target_key = keys[key_idx];
     Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
 
     if (key_pos == 0) {
-      atomicExch(&(dst_offset[key_idx]), key_idx);
+//      atomicExch(&(dst_offset[key_idx]), key_idx);
+      dst_offset[key_idx] = key_idx;
     }
 
     if (bucket->keys[key_pos] == target_key) {
