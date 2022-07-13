@@ -103,9 +103,17 @@ int main() {
   std::chrono::duration<double> diff_test;
 
   {
+
+    uint64_t *d_vals;
+    cudaMalloc((void **)&d_vals, sizeof(uint64_t));
+
     const size_t N = KEY_NUM;
     thrust::device_ptr<uint64_t> dst_ptr_ptr(reinterpret_cast<uint64_t *>(dst_ptr));
-    thrust::sort_by_key(dst_ptr_ptr, dst_ptr_ptr + N, thrust::less<uint64_t>());
+
+    thrust::device_ptr<uint64_t> d_vals_ptr(d_vals);
+
+    thrust::sort_by_key(dst_ptr_ptr, dst_ptr_ptr + N, d_vals_ptr, thrust::less<uint64_t>());
+    cudaFree(d_vals);
   }
 
   cudaDeviceSynchronize();
