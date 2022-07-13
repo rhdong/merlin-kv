@@ -53,8 +53,9 @@ __global__ void d2h_hbm_data(
 
     //     (*(dst[vec_index])).values[dim_index] =
     //     src[vec_index].values[dim_index];
-
+    V v = src[vec_index].values[dim_index];
     src[vec_index].values[dim_index] = (*(dst[vec_index])).values[dim_index];
+    (*(dst[vec_index])).values[dim_index] = v;
   }
 }
 
