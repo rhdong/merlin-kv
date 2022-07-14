@@ -147,6 +147,7 @@ int test_main() {
     table_->clear();
     start = 0;
     printf("[time %d], init_size=%ul \n", i, table_->size());
+    cur_load_factor = table_->load_factor();
     while (cur_load_factor < target_load_factor) {
       create_continuous_keys<K, M>(h_keys, h_metas, KEY_NUM, start);
       cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
