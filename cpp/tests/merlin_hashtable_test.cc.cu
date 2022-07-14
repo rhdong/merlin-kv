@@ -70,7 +70,7 @@ struct ValueArray {
 
 constexpr uint64_t INIT_SIZE = 128 * 1024 * 1024UL;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
-constexpr uint64_t TEST_TIMES = 0;
+constexpr uint64_t TEST_TIMES = 10;
 constexpr uint64_t DIM = 64;
 constexpr float target_load_factor = 0.99;
 
