@@ -175,15 +175,15 @@ int test_main() {
       if (table_->size() < start) {
         avg_quit_loac_factor += cur_load_factor;
         printf(
-            "[quit for loss] cur_load_factor=%.2fms, table_size=%d, "
-            "expect_size=%d.\n",
+            "[quit for loss] cur_load_factor=%.2fms, table_size=%ul, "
+            "expect_size=%ul.\n",
             avg_quit_loac_factor / TEST_TIMES, table_->size(), start);
         break;
       }
       start += KEY_NUM;
     }
   }
-  printf("avg_quit_loac_factor=%.2f, capacity=%ul, key/op=%d\n",
+  printf("avg_quit_loac_factor=%.2f, capacity=%ul, key/op=%ul\n",
          avg_quit_loac_factor / TEST_TIMES, INIT_SIZE, KEY_NUM);
   uint64_t total_size = 0;
   //  for (int i = 0; i < TEST_TIMES; i++) {
