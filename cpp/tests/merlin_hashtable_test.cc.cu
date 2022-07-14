@@ -171,7 +171,7 @@ int test_main() {
 
       printf(
           "[prepare] size=%ul, insert_or_assign=%.2fms, find=%.2fms, "
-          "cur_load_factor=%f\n", table_->size();
+          "cur_load_factor=%f\n", table_->size(),
           diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
           cur_load_factor);
       if (table_->size() < start) {
