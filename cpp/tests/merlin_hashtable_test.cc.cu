@@ -68,11 +68,11 @@ struct ValueArray {
   V value[DIM];
 };
 
-constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024UL;
+constexpr uint64_t INIT_SIZE = 128 * 1024 * 1024UL;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
-constexpr uint64_t TEST_TIMES = 1;
+constexpr uint64_t TEST_TIMES = 0;
 constexpr uint64_t DIM = 64;
-constexpr float target_load_factor = 0.50;
+constexpr float target_load_factor = 0.99;
 
 template <class K, class M>
 __forceinline__ __device__ bool erase_if_pred(const K &key, const M &meta) {
@@ -155,8 +155,8 @@ int test_main() {
         end_insert_or_assign - start_insert_or_assign;
 
     auto start_find = std::chrono::steady_clock::now();
-    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-                 reinterpret_cast<float *>(d_def_val), true, stream);
+//    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
+//                 reinterpret_cast<float *>(d_def_val), true, stream);
     auto end_find = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff_find = end_find - start_find;
 
@@ -167,6 +167,9 @@ int test_main() {
         "cur_load_factor=%f\n",
         diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
         cur_load_factor);
+    if(table_->size() < start) {
+      break;
+    }
     start += KEY_NUM;
   }
   uint64_t total_size = 0;
