@@ -85,7 +85,8 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
     size_t slice_real_size =
         num_of_buckets_in_one_slice * (*table)->buckets_size * sizeof(V);
     if ((*table)->remaining_hbm_for_vectors >= slice_real_size) {
-      std::cout << "initialize_buckets," << (*table)->remaining_hbm_for_vectors << std::endl;
+      std::cout << "initialize_buckets," << (*table)->remaining_hbm_for_vectors
+                << std::endl;
       CUDA_CHECK(cudaMalloc(&((*table)->slices[i]), slice_real_size));
       (*table)->remaining_hbm_for_vectors -= slice_real_size;
     } else {

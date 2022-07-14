@@ -141,8 +141,9 @@ int test_main() {
 
   K start = 0UL;
   float cur_load_factor = table_->load_factor();
+  float avg_quit_loac_factor = 0.0;
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < TEST_TIMES; i++) {
     table_->clear();
     printf("[time %d], init_size=%d \n", i, table_->size());
     while (cur_load_factor < target_load_factor) {
@@ -158,109 +159,117 @@ int test_main() {
           end_insert_or_assign - start_insert_or_assign;
 
       auto start_find = std::chrono::steady_clock::now();
-  //    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-  //                 reinterpret_cast<float *>(d_def_val), true, stream);
+      //    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
+      //    KEY_NUM,
+      //                 reinterpret_cast<float *>(d_def_val), true, stream);
       auto end_find = std::chrono::steady_clock::now();
       std::chrono::duration<double> diff_find = end_find - start_find;
 
       cur_load_factor = table_->load_factor();
 
-      printf(
-          "[prepare] insert_or_assign=%.2fms, find=%.2fms, "
-          "cur_load_factor=%f\n",
-          diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
-          cur_load_factor);
-      if(table_->size() < start) {
+      //      printf(
+      //          "[prepare] insert_or_assign=%.2fms, find=%.2fms, "
+      //          "cur_load_factor=%f\n",
+      //          diff_insert_or_assign.count() * 1000, diff_find.count() *
+      //          1000, cur_load_factor);
+      if (table_->size() < start) {
+        avg_quit_loac_factor += cur_load_factor;
         printf(
-          "[quit for loss] cur_load_factor=%.2fms, table_size=%d, expect_size=%d.\n"
-          "cur_load_factor=%f\n", cur_load_factor, table_->size(), start)
+            "[quit for loss] cur_load_factor=%.2fms, table_size=%d, "
+            "expect_size=%d.\n"
+            "cur_load_factor=%f\n",
+            cur_load_factor, table_->size(), start);
         break;
       }
       start += KEY_NUM;
     }
   }
+  printf("avg_quit_loac_factor=%.2fms, capacity=%ul, key/op=%d\n",
+         avg_quit_loac_factor / TEST_TIMES, INIT_SIZE, KEY_NUM);
   uint64_t total_size = 0;
-  for (int i = 0; i < TEST_TIMES; i++) {
-    total_size = table_->size(stream);
-
-    std::cout << "before insert_or_assign: total_size = " << total_size
-              << std::endl;
-    auto start_insert_or_assign = std::chrono::steady_clock::now();
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
-                             d_metas, KEY_NUM, false, stream);
-    auto end_insert_or_assign = std::chrono::steady_clock::now();
-
-    total_size = table_->size(stream);
-    std::cout << "after 1st insert_or_assign: total_size = " << total_size
-              << std::endl;
-
-    auto start_reserve = std::chrono::steady_clock::now();
-    table_->reserve(table_->capacity() * 2, stream);
-    auto end_reserve = std::chrono::steady_clock::now();
-
-    total_size = table_->size(stream);
-    std::cout << "after reserve: total_size = " << total_size << std::endl;
-
-    cudaMemset(d_vectors, 2, KEY_NUM * sizeof(Vector));
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
-                             d_metas, KEY_NUM, stream);
-
-    total_size = table_->size(stream);
-    std::cout << "after 2nd insert_or_assign: total_size = " << total_size
-              << std::endl;
-
-    auto start_find = std::chrono::steady_clock::now();
-    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-                 reinterpret_cast<float *>(d_def_val), true, stream);
-    auto end_find = std::chrono::steady_clock::now();
-
-    auto start_accum = std::chrono::steady_clock::now();
-    table_->accum(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
-                  KEY_NUM, false, stream);
-    auto end_accum = std::chrono::steady_clock::now();
-
-    auto start_size = std::chrono::steady_clock::now();
-    total_size = table_->size(stream);
-    auto end_size = std::chrono::steady_clock::now();
-    std::cout << "after accum: total_size = " << total_size << std::endl;
-
-    auto start_erase_if = std::chrono::steady_clock::now();
-    size_t erase_num = table_->erase_if(pred<K, M>, stream);
-    auto end_erase_if = std::chrono::steady_clock::now();
-    total_size = table_->size(stream);
-    std::cout << "after erase_if: total_size = " << total_size
-              << ", erase_num = " << erase_num << std::endl;
-
-    auto start_clear = std::chrono::steady_clock::now();
-    table_->clear(stream);
-    auto end_clear = std::chrono::steady_clock::now();
-    total_size = table_->size(stream);
-    std::cout << "after clear: total_size = " << total_size << std::endl;
-
-    table_->clear(stream);
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
-                             d_metas, KEY_NUM, false, stream);
-
-    dump_counter = table_->dump(d_keys, reinterpret_cast<float *>(d_vectors), 0,
-                                table_->capacity(), stream);
-
-    std::chrono::duration<double> diff_insert_or_assign =
-        end_insert_or_assign - start_insert_or_assign;
-    std::chrono::duration<double> diff_size = end_size - start_size;
-    std::chrono::duration<double> diff_find = end_find - start_find;
-    std::chrono::duration<double> diff_accum = end_accum - start_accum;
-    std::chrono::duration<double> diff_reserve = end_reserve - start_reserve;
-    std::chrono::duration<double> diff_erase_if = end_erase_if - start_erase_if;
-    std::chrono::duration<double> diff_clear = end_clear - start_clear;
-    printf("[timing] insert_or_assign=%.2fms\n",
-           diff_insert_or_assign.count() * 1000);
-    printf("[timing] size=%.2fms\n", diff_size.count() * 1000);
-    printf("[timing] reserve=%.2fms\n", diff_reserve.count() * 1000);
-    printf("[timing] find=%.2fms\n", diff_find.count() * 1000);
-    printf("[timing] accum=%.2fms\n", diff_accum.count() * 1000);
-    printf("[timing] erase_if=%.2fms\n", diff_erase_if.count() * 1000);
-    printf("[timing] clear=%.2fms\n", diff_clear.count() * 1000);
-  }
+  //  for (int i = 0; i < TEST_TIMES; i++) {
+  //    total_size = table_->size(stream);
+  //
+  //    std::cout << "before insert_or_assign: total_size = " << total_size
+  //              << std::endl;
+  //    auto start_insert_or_assign = std::chrono::steady_clock::now();
+  //    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+  //                             d_metas, KEY_NUM, false, stream);
+  //    auto end_insert_or_assign = std::chrono::steady_clock::now();
+  //
+  //    total_size = table_->size(stream);
+  //    std::cout << "after 1st insert_or_assign: total_size = " << total_size
+  //              << std::endl;
+  //
+  //    auto start_reserve = std::chrono::steady_clock::now();
+  //    table_->reserve(table_->capacity() * 2, stream);
+  //    auto end_reserve = std::chrono::steady_clock::now();
+  //
+  //    total_size = table_->size(stream);
+  //    std::cout << "after reserve: total_size = " << total_size << std::endl;
+  //
+  //    cudaMemset(d_vectors, 2, KEY_NUM * sizeof(Vector));
+  //    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+  //                             d_metas, KEY_NUM, stream);
+  //
+  //    total_size = table_->size(stream);
+  //    std::cout << "after 2nd insert_or_assign: total_size = " << total_size
+  //              << std::endl;
+  //
+  //    auto start_find = std::chrono::steady_clock::now();
+  //    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
+  //    KEY_NUM,
+  //                 reinterpret_cast<float *>(d_def_val), true, stream);
+  //    auto end_find = std::chrono::steady_clock::now();
+  //
+  //    auto start_accum = std::chrono::steady_clock::now();
+  //    table_->accum(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
+  //                  KEY_NUM, false, stream);
+  //    auto end_accum = std::chrono::steady_clock::now();
+  //
+  //    auto start_size = std::chrono::steady_clock::now();
+  //    total_size = table_->size(stream);
+  //    auto end_size = std::chrono::steady_clock::now();
+  //    std::cout << "after accum: total_size = " << total_size << std::endl;
+  //
+  //    auto start_erase_if = std::chrono::steady_clock::now();
+  //    size_t erase_num = table_->erase_if(pred<K, M>, stream);
+  //    auto end_erase_if = std::chrono::steady_clock::now();
+  //    total_size = table_->size(stream);
+  //    std::cout << "after erase_if: total_size = " << total_size
+  //              << ", erase_num = " << erase_num << std::endl;
+  //
+  //    auto start_clear = std::chrono::steady_clock::now();
+  //    table_->clear(stream);
+  //    auto end_clear = std::chrono::steady_clock::now();
+  //    total_size = table_->size(stream);
+  //    std::cout << "after clear: total_size = " << total_size << std::endl;
+  //
+  //    table_->clear(stream);
+  //    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+  //                             d_metas, KEY_NUM, false, stream);
+  //
+  //    dump_counter = table_->dump(d_keys, reinterpret_cast<float
+  //    *>(d_vectors), 0,
+  //                                table_->capacity(), stream);
+  //
+  //    std::chrono::duration<double> diff_insert_or_assign =
+  //        end_insert_or_assign - start_insert_or_assign;
+  //    std::chrono::duration<double> diff_size = end_size - start_size;
+  //    std::chrono::duration<double> diff_find = end_find - start_find;
+  //    std::chrono::duration<double> diff_accum = end_accum - start_accum;
+  //    std::chrono::duration<double> diff_reserve = end_reserve -
+  //    start_reserve; std::chrono::duration<double> diff_erase_if =
+  //    end_erase_if - start_erase_if; std::chrono::duration<double> diff_clear
+  //    = end_clear - start_clear; printf("[timing] insert_or_assign=%.2fms\n",
+  //           diff_insert_or_assign.count() * 1000);
+  //    printf("[timing] size=%.2fms\n", diff_size.count() * 1000);
+  //    printf("[timing] reserve=%.2fms\n", diff_reserve.count() * 1000);
+  //    printf("[timing] find=%.2fms\n", diff_find.count() * 1000);
+  //    printf("[timing] accum=%.2fms\n", diff_accum.count() * 1000);
+  //    printf("[timing] erase_if=%.2fms\n", diff_erase_if.count() * 1000);
+  //    printf("[timing] clear=%.2fms\n", diff_clear.count() * 1000);
+  //  }
   cudaStreamDestroy(stream);
 
   cudaMemcpy(h_found, d_found, KEY_NUM * sizeof(bool), cudaMemcpyDeviceToHost);
