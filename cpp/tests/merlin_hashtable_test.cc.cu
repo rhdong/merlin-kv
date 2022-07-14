@@ -68,7 +68,7 @@ struct ValueArray {
   V value[DIM];
 };
 
-constexpr uint64_t INIT_SIZE = 1024 * 1024 * 1024UL;
+constexpr uint64_t INIT_SIZE = 128 * 1024 * 1024UL;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 10;
 constexpr uint64_t DIM = 64;
@@ -177,7 +177,7 @@ int test_main() {
       if (table_->size() < start) {
         avg_quit_loac_factor += cur_load_factor;
         printf(
-            "[quit for loss] cur_load_factor=%.2fms, table_size=%zu, "
+            "[quit for loss] cur_load_factor=%.2f, table_size=%zu, "
             "expect_size=%zu.\n",
             cur_load_factor, table_->size(), start);
         break;
