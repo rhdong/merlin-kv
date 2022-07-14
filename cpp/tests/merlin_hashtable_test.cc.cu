@@ -167,24 +167,23 @@ int test_main() {
 
       cur_load_factor = table_->load_factor();
 
-      //      printf(
-      //          "[prepare] insert_or_assign=%.2fms, find=%.2fms, "
-      //          "cur_load_factor=%f\n",
-      //          diff_insert_or_assign.count() * 1000, diff_find.count() *
-      //          1000, cur_load_factor);
+      printf(
+          "[prepare] insert_or_assign=%.2fms, find=%.2fms, "
+          "cur_load_factor=%f\n",
+          diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
+          cur_load_factor);
       if (table_->size() < start) {
         avg_quit_loac_factor += cur_load_factor;
         printf(
             "[quit for loss] cur_load_factor=%.2fms, table_size=%d, "
-            "expect_size=%d.\n"
-            "cur_load_factor=%f\n",
-            cur_load_factor, table_->size(), start);
+            "expect_size=%d.\n",
+            avg_quit_loac_factor / TEST_TIMES, table_->size(), start);
         break;
       }
       start += KEY_NUM;
     }
   }
-  printf("avg_quit_loac_factor=%.2fms, capacity=%ul, key/op=%d\n",
+  printf("avg_quit_loac_factor=%.2f, capacity=%ul, key/op=%d\n",
          avg_quit_loac_factor / TEST_TIMES, INIT_SIZE, KEY_NUM);
   uint64_t total_size = 0;
   //  for (int i = 0; i < TEST_TIMES; i++) {
