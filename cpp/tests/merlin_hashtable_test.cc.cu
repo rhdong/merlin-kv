@@ -146,7 +146,7 @@ int test_main() {
   for (int i = 0; i < TEST_TIMES; i++) {
     table_->clear();
     start = 0;
-    printf("[time %d], init_size=%ul \n", i, table_->size());
+    printf("[time %d], init_size=%zu\n", i, table_->size());
     cur_load_factor = table_->load_factor();
     while (cur_load_factor < target_load_factor) {
       create_continuous_keys<K, M>(h_keys, h_metas, KEY_NUM, start);
