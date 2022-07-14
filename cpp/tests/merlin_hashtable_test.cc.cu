@@ -145,7 +145,8 @@ int test_main() {
 
   for (int i = 0; i < TEST_TIMES; i++) {
     table_->clear();
-    printf("[time %d], init_size=%d \n", i, table_->size());
+    start = 0;
+    printf("[time %d], init_size=%ul \n", i, table_->size());
     while (cur_load_factor < target_load_factor) {
       create_continuous_keys<K, M>(h_keys, h_metas, KEY_NUM, start);
       cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
@@ -177,7 +178,7 @@ int test_main() {
         printf(
             "[quit for loss] cur_load_factor=%.2fms, table_size=%ul, "
             "expect_size=%ul.\n",
-            avg_quit_loac_factor / TEST_TIMES, table_->size(), start);
+            cur_load_factor, table_->size(), start);
         break;
       }
       start += KEY_NUM;
