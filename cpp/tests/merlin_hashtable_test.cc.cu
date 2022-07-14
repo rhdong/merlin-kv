@@ -142,35 +142,42 @@ int test_main() {
   K start = 0UL;
   float cur_load_factor = table_->load_factor();
 
-  while (cur_load_factor < target_load_factor) {
-    create_continuous_keys<K, M>(h_keys, h_metas, KEY_NUM, start);
-    cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_metas, h_metas, KEY_NUM * sizeof(M), cudaMemcpyHostToDevice);
+  for (int i = 0; i < 10; i++) {
+    table_->clear();
+    printf("[time %d], init_size=%d \n", i, table_->size());
+    while (cur_load_factor < target_load_factor) {
+      create_continuous_keys<K, M>(h_keys, h_metas, KEY_NUM, start);
+      cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
+      cudaMemcpy(d_metas, h_metas, KEY_NUM * sizeof(M), cudaMemcpyHostToDevice);
 
-    auto start_insert_or_assign = std::chrono::steady_clock::now();
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
-                             d_metas, KEY_NUM, false, stream);
-    auto end_insert_or_assign = std::chrono::steady_clock::now();
-    std::chrono::duration<double> diff_insert_or_assign =
-        end_insert_or_assign - start_insert_or_assign;
+      auto start_insert_or_assign = std::chrono::steady_clock::now();
+      table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+                               d_metas, KEY_NUM, false, stream);
+      auto end_insert_or_assign = std::chrono::steady_clock::now();
+      std::chrono::duration<double> diff_insert_or_assign =
+          end_insert_or_assign - start_insert_or_assign;
 
-    auto start_find = std::chrono::steady_clock::now();
-//    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-//                 reinterpret_cast<float *>(d_def_val), true, stream);
-    auto end_find = std::chrono::steady_clock::now();
-    std::chrono::duration<double> diff_find = end_find - start_find;
+      auto start_find = std::chrono::steady_clock::now();
+  //    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
+  //                 reinterpret_cast<float *>(d_def_val), true, stream);
+      auto end_find = std::chrono::steady_clock::now();
+      std::chrono::duration<double> diff_find = end_find - start_find;
 
-    cur_load_factor = table_->load_factor();
+      cur_load_factor = table_->load_factor();
 
-    printf(
-        "[prepare] insert_or_assign=%.2fms, find=%.2fms, "
-        "cur_load_factor=%f\n",
-        diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
-        cur_load_factor);
-    if(table_->size() < start) {
-      break;
+      printf(
+          "[prepare] insert_or_assign=%.2fms, find=%.2fms, "
+          "cur_load_factor=%f\n",
+          diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
+          cur_load_factor);
+      if(table_->size() < start) {
+        printf(
+          "[quit for loss] cur_load_factor=%.2fms, table_size=%d, expect_size=%d.\n"
+          "cur_load_factor=%f\n", cur_load_factor, table_->size(), start)
+        break;
+      }
+      start += KEY_NUM;
     }
-    start += KEY_NUM;
   }
   uint64_t total_size = 0;
   for (int i = 0; i < TEST_TIMES; i++) {
