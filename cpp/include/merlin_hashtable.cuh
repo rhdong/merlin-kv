@@ -672,9 +672,9 @@ class HashTable {
     CUDA_CHECK(cudaMemsetAsync(d_size, 0, sizeof(size_t), stream));
 
     {
-      const size_t N = table_->buckets_num;
+      const size_t N = table_->buckets_num * table_->buckets_size;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
-      size_kernel<Key, Vector, M, DIM>
+      size_kernel_old<Key, Vector, M, DIM>
           <<<grid_size, block_size_, 0, stream>>>(table_, d_size, N);
     }
 
