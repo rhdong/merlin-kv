@@ -824,6 +824,7 @@ class HashTable {
             table_, keys, reinterpret_cast<Vector *>(vectors), offset, max_num,
             d_counter);
 
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     CUDA_CHECK(cudaMemcpyAsync(&h_counter, d_counter, sizeof(size_t),
                                cudaMemcpyDeviceToHost, stream));
     CUDA_CHECK(cudaFreeAsync(d_counter, stream));
