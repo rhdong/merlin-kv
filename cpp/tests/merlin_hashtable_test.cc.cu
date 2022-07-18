@@ -189,9 +189,9 @@ int test_main() {
       K *d_keys_for_dump;
       Vector *d_vectors_for_dump;
 
-      cudaMalloc(&d_keys_for_dump, table_->size() * sizeof(K));  // 256MB
+      cudaMalloc(&d_keys_for_dump, table_->capacity() * sizeof(K));  // 256MB
       cudaMalloc(&d_vectors_for_dump,
-                 table_->size() * sizeof(Vector));  // 256MB
+                 table_->capacity() * sizeof(Vector));  // 256MB
 
       dump_counter = table_->dump(d_keys_for_dump,
                                   reinterpret_cast<float *>(d_vectors_for_dump),
