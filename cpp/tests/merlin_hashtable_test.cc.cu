@@ -185,12 +185,23 @@ int test_main() {
       }
       start += KEY_NUM;
     }
-    dump_counter = table_->dump(d_keys, reinterpret_cast<float *>(d_vectors), 0,
-                                table_->capacity(), stream);
-    std::cout << "Capacity = " << table_->capacity()
-            << ", total_size = " << total_size
-            << ", dump_counter = " << dump_counter
-            << std::endl;
+    {
+      Vector *d_keys_for_dump;
+      Vector *d_vectors_for_dump;
+
+      cudaMalloc(&d_keys_for_dump, table_->size() * sizeof(K));  // 256MB
+      cudaMalloc(&d_vectors_for_dump,
+                 table_->size() * sizeof(Vector));  // 256MB
+
+      dump_counter = table_->dump(d_keys_for_dump,
+                                  reinterpret_cast<float *>(d_vectors_for_dump),
+                                  0, table_->capacity(), stream);
+      std::cout << "Capacity = " << table_->capacity()
+                << ", total_size = " << total_size
+                << ", dump_counter = " << dump_counter << std::endl;
+      cudaFree(d_keys_for_dump);
+      cudaFree(d_vectors_for_dump);
+    }
   }
   printf("avg_quit_loac_factor=%.2f, capacity=%zu, key/op=%zu\n",
          avg_quit_loac_factor / TEST_TIMES, INIT_SIZE, KEY_NUM);
