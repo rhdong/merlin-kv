@@ -69,7 +69,7 @@ struct ValueArray {
 };
 
 constexpr uint64_t INIT_SIZE = 128 * 1024 * 1024UL;
-constexpr uint64_t KEY_NUM =  1 * 1024 * 1024UL;
+constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 1;
 constexpr uint64_t DIM = 64;
 constexpr float target_load_factor = 0.99;
@@ -161,9 +161,8 @@ int test_main() {
           end_insert_or_assign - start_insert_or_assign;
 
       auto start_find = std::chrono::steady_clock::now();
-      //    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
-      //    KEY_NUM,
-      //                 reinterpret_cast<float *>(d_def_val), true, stream);
+      table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
+                   KEY_NUM, reinterpret_cast<float *>(d_def_val), true, stream);
       auto end_find = std::chrono::steady_clock::now();
       std::chrono::duration<double> diff_find = end_find - start_find;
 
@@ -171,9 +170,10 @@ int test_main() {
 
       printf(
           "[prepare] size=%zu, insert_or_assign=%.2fms, find=%.2fms, "
-          "cur_load_factor=%f\n", table_->size(),
-          diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
-          cur_load_factor);
+          "cur_load_factor=%f\n",
+          table_->size(), diff_insert_or_assign.count() * 1000,
+          diff_find.count() * 1000, cur_load_factor);
+
       if (table_->size() < start) {
         avg_quit_loac_factor += cur_load_factor;
         printf(
@@ -184,6 +184,12 @@ int test_main() {
       }
       start += KEY_NUM;
     }
+    dump_counter = table_->dump(d_keys, reinterpret_cast<float *>(d_vectors), 0,
+                                table_->capacity(), stream);
+    std::cout << "Capacity = " << table_->capacity()
+            << ", total_size = " << total_size
+            << ", dump_counter = " << dump_counter
+            << std::endl;
   }
   printf("avg_quit_loac_factor=%.2f, capacity=%zu, key/op=%zu\n",
          avg_quit_loac_factor / TEST_TIMES, INIT_SIZE, KEY_NUM);
