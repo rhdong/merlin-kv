@@ -120,6 +120,7 @@ int test_main() {
   Vector **d_vectors_ptr;
   bool *d_found;
   size_t dump_counter = 0;
+  uint64_t total_size = 0;
 
   cudaMalloc(&d_keys, KEY_NUM * sizeof(K));                // 8MB
   cudaMalloc(&d_metas, KEY_NUM * sizeof(M));               // 8MB
@@ -193,7 +194,6 @@ int test_main() {
   }
   printf("avg_quit_loac_factor=%.2f, capacity=%zu, key/op=%zu\n",
          avg_quit_loac_factor / TEST_TIMES, INIT_SIZE, KEY_NUM);
-  uint64_t total_size = 0;
   //  for (int i = 0; i < TEST_TIMES; i++) {
   //    total_size = table_->size(stream);
   //
