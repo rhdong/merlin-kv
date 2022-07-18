@@ -186,7 +186,7 @@ int test_main() {
       start += KEY_NUM;
     }
     {
-      Vector *d_keys_for_dump;
+      K *d_keys_for_dump;
       Vector *d_vectors_for_dump;
 
       cudaMalloc(&d_keys_for_dump, table_->size() * sizeof(K));  // 256MB
