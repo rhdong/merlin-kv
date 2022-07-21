@@ -175,7 +175,7 @@ int test_main() {
           table_->size(), diff_insert_or_assign.count() * 1000,
           diff_find.count() * 1000, cur_load_factor);
 
-      if (table_->size() < start) {
+      if (table_->size(stream) < start) {
         avg_quit_loac_factor += cur_load_factor;
         printf(
             "[quit for loss] cur_load_factor=%.2f, table_size=%zu, "
