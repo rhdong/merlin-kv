@@ -16,29 +16,31 @@
 
 #pragma once
 
+#include "utils.cuh"
+
 namespace nv {
 namespace merlin {
 
 template <class T>
-class FlexMemory {
+class FlexHBM {
  public:
-  FlexMemory(size_t size = 1) : ptr_(nullptr) {
+  FlexHBM(size_t size = 1, cudaStream_t stream = 0) : ptr_(nullptr) {
     if (!ptr_) {
       size_ = size;
       assert(size_ > 0);
-      cudaMalloc(&ptr_, sizeof(T) * size_);
+      cudaMallocAsync(&ptr_, sizeof(T) * size_, stream);
     }
   }
-  ~FlexMemory() {
-    if (!ptr_) cudaFree(ptr_);
+  ~FlexHBM(cudaStream_t stream = 0) {
+    if (!ptr_) CUDA_CHECK(cudaFreeAsync(ptr_, stream));
   }
 
-  __inline__ T *alloc_or_reuse(size_t size = 0) {
+  __inline__ T *alloc_or_reuse(size_t size, cudaStream_t stream = 0) {
     if (size > size_) {
-      cudaFree(ptr_);
-      size_ = size;
+      CUDA_CHECK(cudaFreeAsync(ptr_, stream));
       assert(size_ > 0);
-      cudaMalloc(&ptr_, sizeof(T) * size_);
+      CUDA_CHECK(cudaMallocAsync(&ptr_, sizeof(T) * size_, stream));
+      size_ = size;
     }
     return ptr_;
   }
