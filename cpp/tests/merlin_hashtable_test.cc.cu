@@ -173,10 +173,10 @@ int test_main() {
           "[prepare] size=%zu, expect_size=%zu, insert_or_assign=%.2fms, "
           "find=%.2fms, "
           "cur_load_factor=%f\n",
-          table_->size(), start + KEY_NUM, diff_insert_or_assign.count() * 1000,
+          table_->size(stream), start + KEY_NUM, diff_insert_or_assign.count() * 1000,
           diff_find.count() * 1000, cur_load_factor);
 
-      if (table_->size(stream) < start) {
+      if (table_->size(stream) < start + KEY_NUM) {
         avg_quit_loac_factor += cur_load_factor;
         printf(
             "[quit for loss] cur_load_factor=%.2f, table_size=%zu, "
