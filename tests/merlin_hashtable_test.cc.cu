@@ -75,7 +75,7 @@ constexpr uint64_t MAX_SIZE = 2 * INIT_SIZE;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 1;
 constexpr uint64_t DIM = 64;
-constexpr float target_load_factor = 0.99;
+constexpr float target_load_factor = 0.0;
 
 template <class K, class M>
 __forceinline__ __device__ bool erase_if_pred(const K &key, const M &meta) {
@@ -98,7 +98,7 @@ using Table = nv::merlin::HashTable<K, float, M, DIM>;
 template <class K, class M>
 __device__ Table::Pred pred = erase_if_pred<K, M>;
 
-int test_main() {
+TEST(MerlinKvBasicTest, BasicAssertions) {
   K *h_keys;
   M *h_metas;
   Vector *h_vectors;
@@ -183,7 +183,7 @@ int test_main() {
   uint64_t total_size = 0;
   for (int i = 0; i < TEST_TIMES; i++) {
     total_size = table_->size(stream);
-
+    EXPECT_EQ(total_size, 0);
     std::cout << "before insert_or_assign: total_size = " << total_size
               << std::endl;
     auto start_insert_or_assign = std::chrono::steady_clock::now();
