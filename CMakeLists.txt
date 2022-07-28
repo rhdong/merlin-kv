@@ -68,7 +68,7 @@ enable_testing()
 
 add_executable(
   merlin_hashtable_test
-  tests/merlin_hashtable_test.cc
+  tests/merlin_hashtable_test.cc.cu
 )
 target_link_libraries(
   merlin_hashtable_test
