@@ -1,6 +1,4 @@
 # Merlin-KV
------------------
-![Merlin KV logo](assets/merlin-hkvs.png)
 
 [![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](docs/api_docs/)
 
@@ -34,10 +32,6 @@ makes building, evaluating, and serving sophisticated recommenders models easy.
 
 Merlin-KV is maintianed by [NVIDIA Merlin Team](https://github.com/NVIDIA-Merlin) 
 and also open for public contributions, bug fixes, and documentation. [[Contribute](CONTRIBUTING.md)]
-
-<a href="https://github.com/NVIDIA-Merlin">
-  <kbd> <img src="./assets/merilin.png" height="70" /> </kbd>
-</a>
 
 ## Benchmark
 
@@ -97,7 +91,7 @@ Merlin-KV is positioned as a header-only library. The environment requirement is
 - CUDA version >= 11.2
 - NVIDIA GPU with Compute capbility 8.0 8.6 or 8.7
 
-See [tutorials](docs/api_docs/html/index.html) and [demo(TBD)](cpp/tests/merlin_hashtable_test.cc.cu) for end-to-end examples of each subpackages.
+See [tutorials](docs/api_docs/html/index.html) and [demo(TBD)](tests/merlin_hashtable_test.cc.cu) for end-to-end examples of each subpackages.
 
 ## API docs
 

@@ -1,8 +1,6 @@
-workspace(name = "merlin_kv")
+workspace(name = "merlin-kv")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
-load("//build_deps/tf_dependency:tf_configure.bzl", "tf_configure")
 load("//build_deps/toolchains/gpu:cuda_configure.bzl", "cuda_configure")
 
 http_archive(
@@ -27,10 +25,6 @@ http_archive(
         "https://storage.googleapis.com/mirror.tensorflow.org/github.com/NVlabs/cub/archive/1.8.0.zip",
         "https://github.com/NVlabs/cub/archive/1.8.0.zip",
     ],
-)
-
-tf_configure(
-    name = "local_config_tf",
 )
 
 cuda_configure(name = "local_config_cuda")
