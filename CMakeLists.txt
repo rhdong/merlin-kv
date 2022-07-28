@@ -1,9 +1,19 @@
 cmake_minimum_required(VERSION 3.10)
-project(merlin-hkvs LANGUAGES CXX CUDA)
+project(merlin-kv LANGUAGES CXX CUDA)
 find_package(CUDAToolkit)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG release-1.12.1
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
 option(CLANGFORMAT "Clangformat source code before compiling" ON)
@@ -43,13 +53,27 @@ include_directories(
 link_directories(
 )
 
-file(GLOB_RECURSE merlin_hkvs_src RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp *.cu)
+file(GLOB_RECURSE merlin_kv_src RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp *.cu)
 
 # TODO:
-# add_library(merlin_hkvs STATIC ${merlin_hkvs_src})
-# target_compile_features(merlin_hkvs PUBLIC cxx_std_17)
-# target_link_libraries(merlin_hkvs PUBLIC ...)
+# add_library(merlin_kv STATIC ${merlin_kv_src})
+# target_compile_features(merlin_kv PUBLIC cxx_std_17)
+# target_link_libraries(merlin_kv PUBLIC ...)
 
 add_executable(merlin_hashtable_test tests/merlin_hashtable_test.cc.cu)
 target_compile_features(merlin_hashtable_test PUBLIC cxx_std_17)
 set_target_properties(merlin_hashtable_test PROPERTIES  CUDA_ARCHITECTURES OFF)
+
+enable_testing()
+
+add_executable(
+  hello_test
+  hello_test.cc
+)
+target_link_libraries(
+  hello_test
+  GTest::gtest_main
+)
+
+include(GoogleTest)
+gtest_discover_tests(hello_test)

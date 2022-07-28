@@ -28,6 +28,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <gtest/gtest.h>
+
 #include "merlin/initializers.cuh"
 #include "merlin/optimizers.cuh"
 #include "merlin_hashtable.cuh"
@@ -78,6 +80,13 @@ constexpr float target_load_factor = 0.99;
 template <class K, class M>
 __forceinline__ __device__ bool erase_if_pred(const K &key, const M &meta) {
   return ((key % 2) == 1);
+}
+
+TEST(HelloTest, BasicAssertions) {
+  // Expect two strings not to be equal.
+  EXPECT_STRNE("hello", "world");
+  // Expect equality.
+  EXPECT_EQ(7 * 6, 42);
 }
 
 using K = uint64_t;
