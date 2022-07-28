@@ -67,13 +67,13 @@ set_target_properties(merlin_hashtable_test PROPERTIES  CUDA_ARCHITECTURES OFF)
 enable_testing()
 
 add_executable(
-  hello_test
-  hello_test.cc
+  merlin_hashtable_test
+  tests/merlin_hashtable_test.cc
 )
 target_link_libraries(
-  hello_test
+  merlin_hashtable_test
   GTest::gtest_main
 )
 
 include(GoogleTest)
-gtest_discover_tests(hello_test)
+gtest_discover_tests(merlin_hashtable_test)
