@@ -283,5 +283,4 @@ TEST(MerlinKvBasicTest, BasicAssertions) {
 
   std::cout << "COMPLETED SUCCESSFULLY" << std::endl;
 
-  return 0;
 }
