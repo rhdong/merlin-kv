@@ -566,20 +566,10 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     bool found_or_empty = false;
     const size_t bucket_max_size = table->bucket_max_size;
     size_t key_idx = t / TILE_SIZE;
-    K insert_key = EMPTY_KEY;
-    K hashed_key = EMPTY_KEY;
-    size_t bkt_idx = 0;
-    size_t start_idx = 0;
-
-    if (rank == 0) {
-      insert_key = keys[key_idx];
-      hashed_key = insert_key;//Murmur3HashDevice(insert_key);
-      bkt_idx = hashed_key & (table->buckets_num - 1);
-      start_idx = hashed_key & (bucket_max_size - 1);
-    }
-    insert_key = g.shfl(insert_key, 0);
-    bkt_idx = g.shfl(bkt_idx, 0);
-    start_idx = g.shfl(start_idx, 0);
+    K insert_key = keys[key_idx];
+    K hashed_key = Murmur3HashDevice(insert_key);
+    size_t bkt_idx = hashed_key & (table->buckets_num - 1);
+    size_t start_idx = hashed_key & (bucket_max_size - 1);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
