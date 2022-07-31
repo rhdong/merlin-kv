@@ -551,7 +551,7 @@ __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
     }
   }
 }
-template <class K, class V, class M, size_t DIM, size_t TILE_SIZE = 8>
+template <class K, class V, class M, size_t DIM, size_t TILE_SIZE = 4>
 __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
                               const M *__restrict metas,
