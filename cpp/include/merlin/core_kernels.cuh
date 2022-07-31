@@ -600,12 +600,12 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
           table->buckets_size[bkt_idx]++;
         }
         bucket->keys[key_pos] = insert_key;
-        bucket->metas[key_pos].val = metas[key_idx];
+//        bucket->metas[key_pos].val = metas[key_idx];
 
-        /// Re-locate the smallest meta.
-        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
-          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
-        }
+//        /// Re-locate the smallest meta.
+//        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
+//          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
+//        }
 
         /// Record storage offset. This will be used by write_kernel to map
         /// the input to the output data.
