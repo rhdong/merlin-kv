@@ -392,9 +392,9 @@ __global__ void read_kernel(const V *const *__restrict src, V *__restrict dst,
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int vec_index = int(t / DIM);
     int dim_index = t % DIM;
-    int default_index = full_size_default ? dst_offset[vec_index] : 0;
     int real_dst_offset =
         dst_offset != nullptr ? dst_offset[vec_index] : vec_index;
+    int default_index = full_size_default ? real_dst_offset : 0;
 
     /// Copy selected values and fill in default value for all others.
     if (mask[real_dst_offset] && src[vec_index] != nullptr) {

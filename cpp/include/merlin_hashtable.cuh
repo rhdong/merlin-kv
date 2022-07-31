@@ -337,8 +337,10 @@ class HashTable {
     CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(found, 0, len * sizeof(bool), stream));
+    if (!is_pure_hbm_mode()) {
       CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
       CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
+    }
 
     // Determine bucket locations for reading.
     {
@@ -352,7 +354,6 @@ class HashTable {
     }
 
     if (!is_pure_hbm_mode()) {
-      std::cout << "ddddddddddddddddddddddd" << std::endl;
       static_assert(
           sizeof(V *) == sizeof(uint64_t),
           "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
