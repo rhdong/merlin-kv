@@ -88,15 +88,9 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
     size_t slice_real_size =
         num_of_buckets_in_one_slice * (*table)->bucket_max_size * sizeof(V);
     if ((*table)->remaining_hbm_for_vectors >= slice_real_size) {
-      std::cout << "remaining_hbm_for_vectors="
-                << (*table)->remaining_hbm_for_vectors << std::endl;
       CUDA_CHECK(cudaMalloc(&((*table)->slices[i]), slice_real_size));
       (*table)->remaining_hbm_for_vectors -= slice_real_size;
     } else {
-      std::cout << "remaining_hbm_for_vectors2="
-                << (*table)->remaining_hbm_for_vectors << std::endl;
-      std::cout << "slice_real_size="
-                << slice_real_size << std::endl;
       (*table)->is_pure_hbm = false;
       CUDA_CHECK(cudaMallocHost(&((*table)->slices[i]), slice_real_size,
                                 cudaHostRegisterMapped));
@@ -400,13 +394,14 @@ __global__ void read_kernel(const V *const *__restrict src, V *__restrict dst,
     int vec_index = int(t / DIM);
     int dim_index = t % DIM;
     int default_index = full_size_default ? dst_offset[vec_index] : 0;
+    int real_dst_offset = dst_offset ? dst_offset[vec_index] : vec_index;
 
     /// Copy selected values and fill in default value for all others.
-    if (mask[dst_offset[vec_index]] && src[vec_index] != nullptr) {
-      dst[dst_offset[vec_index]].value[dim_index] =
+    if (mask[real_dst_offset] && src[vec_index] != nullptr) {
+      dst[real_dst_offset].value[dim_index] =
           src[vec_index]->value[dim_index];
     } else {
-      dst[dst_offset[vec_index]].value[dim_index] =
+      dst[real_dst_offset].value[dim_index] =
           default_val[default_index].value[dim_index];
     }
   }
