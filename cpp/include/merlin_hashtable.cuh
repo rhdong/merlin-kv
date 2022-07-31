@@ -351,6 +351,7 @@ class HashTable {
 
       lookup_kernel<Key, Vector, M, DIM><<<grid_size, block_size, 0, stream>>>(
           table_, keys, src, nullptr, found, dst_offset, N);
+      CUDA_CHECK(cudaStreamSynchronize(stream));
     }
 
     if (!is_pure_hbm_mode()) {
@@ -379,6 +380,7 @@ class HashTable {
           src, reinterpret_cast<Vector *>(vectors), found,
           reinterpret_cast<const Vector *>(default_vectors), dst_offset, N,
           full_size_default);
+      CUDA_CHECK(cudaStreamSynchronize(stream));
     }
 
     CUDA_CHECK(cudaFreeAsync(src, stream));
