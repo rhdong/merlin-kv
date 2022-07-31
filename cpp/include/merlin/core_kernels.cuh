@@ -573,7 +573,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     if (rank == 0) {
       insert_key = keys[key_idx];
-      hashed_key = Murmur3HashDevice(insert_key);
+      hashed_key = insert_key;//Murmur3HashDevice(insert_key);
       bkt_idx = hashed_key & (table->buckets_num - 1);
       start_idx = hashed_key & (bucket_max_size - 1);
     }
