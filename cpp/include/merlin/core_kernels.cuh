@@ -289,12 +289,11 @@ __global__ void write_kernel(const V *__restrict src, V **__restrict dst,
     int dim_index = t % DIM;
 
     if (dst[vec_index] != nullptr) {
-      if(src_offset != nullptr) {
+      if (src_offset != nullptr) {
         (*(dst[vec_index])).value[dim_index] =
             src[src_offset[vec_index]].value[dim_index];
       } else {
-        (*(dst[vec_index])).value[dim_index] =
-            src[vec_index].value[dim_index];
+        (*(dst[vec_index])).value[dim_index] = src[vec_index].value[dim_index];
       }
     }
   }
@@ -398,8 +397,7 @@ __global__ void read_kernel(const V *const *__restrict src, V *__restrict dst,
 
     /// Copy selected values and fill in default value for all others.
     if (mask[real_dst_offset] && src[vec_index] != nullptr) {
-      dst[real_dst_offset].value[dim_index] =
-          src[vec_index]->value[dim_index];
+      dst[real_dst_offset].value[dim_index] = src[vec_index]->value[dim_index];
     } else {
       dst[real_dst_offset].value[dim_index] =
           default_val[default_index].value[dim_index];
@@ -578,10 +576,10 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
-//    if (rank == 0) {
-//      lock<Mutex>(table->locks[bkt_idx]);
-//    }
-//    g.sync();
+    //    if (rank == 0) {
+    //      lock<Mutex>(table->locks[bkt_idx]);
+    //    }
+    //    g.sync();
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
@@ -593,8 +591,8 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
                    key_compare<K>(&insert_key, &current_key));
       if (found_or_empty_vote) {
         found_or_empty = true;
-        key_pos =
-            (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) % bucket_max_size;
+        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) %
+                  bucket_max_size;
         break;
       }
     }
@@ -605,28 +603,28 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
           table->buckets_size[bkt_idx]++;
         }
         bucket->keys[key_pos] = insert_key;
-//        bucket->metas[key_pos].val = metas[key_idx];
+        //        bucket->metas[key_pos].val = metas[key_idx];
 
-//        /// Re-locate the smallest meta.
-//        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
-//          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
-//        }
+        //        /// Re-locate the smallest meta.
+        //        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
+        //          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
+        //        }
 
         /// Record storage offset. This will be used by write_kernel to map
         /// the input to the output data.
         if (vectors[key_idx] == nullptr) {
           vectors[key_idx] = (bucket->vectors + key_pos);
         }
-        if (src_offset!= nullptr) {
+        if (src_offset != nullptr) {
           src_offset[key_idx] = key_idx;
         }
       }
     }
 
-//    g.sync();
-//    if (rank == 0) {
-//      unlock<Mutex>(table->locks[bkt_idx]);
-//    }
+    //    g.sync();
+    //    if (rank == 0) {
+    //      unlock<Mutex>(table->locks[bkt_idx]);
+    //    }
   }
 }
 

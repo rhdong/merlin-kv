@@ -182,7 +182,7 @@ class HashTable {
                                                    d_src_offset, N);
       }
     }
-      std::cout << "is_pure_hbm_mode=" << is_pure_hbm_mode() << std::endl;
+    std::cout << "is_pure_hbm_mode=" << is_pure_hbm_mode() << std::endl;
 
     if (!is_pure_hbm_mode()) {
       static_assert(
@@ -212,7 +212,7 @@ class HashTable {
     }
 
     CUDA_CHECK(cudaFreeAsync(d_dst, stream));
-    if(d_src_offset != nullptr) {
+    if (d_src_offset != nullptr) {
       CUDA_CHECK(cudaFreeAsync(d_src_offset, stream));
     }
 
@@ -382,8 +382,9 @@ class HashTable {
     }
 
     CUDA_CHECK(cudaFreeAsync(src, stream));
-    CUDA_CHECK(cudaFreeAsync(dst_offset, stream));
-
+    if (dst_offset != nullptr) {
+      CUDA_CHECK(cudaFreeAsync(dst_offset, stream));
+    }
     CUDA_CHECK(cudaStreamSynchronize(stream));
     CudaCheckError();
   }
