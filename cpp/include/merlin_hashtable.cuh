@@ -384,7 +384,7 @@ class HashTable {
     }
 
     CUDA_CHECK(cudaFreeAsync(src, stream));
-    if (dst_offset != nullptr) {
+    if (!is_pure_hbm_mode()) {
       CUDA_CHECK(cudaFreeAsync(dst_offset, stream));
     }
     CUDA_CHECK(cudaStreamSynchronize(stream));
