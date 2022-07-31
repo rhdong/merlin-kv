@@ -563,7 +563,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     int key_pos = -1;
     bool found_or_empty = false;
-    bool empty = false;
+    bool has_empty_slots = false;
     const size_t bucket_max_size = table->bucket_max_size;
     const size_t capacity = table->capacity;
     size_t key_idx = t / TILE_SIZE;
@@ -590,7 +590,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     g.sync();
 
     size_t tile_offset = 0;
-    empty = table->buckets_size[bkt_idx] < bucket_max_size;
+    has_empty_slots = table->buckets_size[bkt_idx] < bucket_max_size;
 #pragma unroll
     for (tile_offset = 0; empty && tile_offset < bucket_max_size;
          tile_offset += TILE_SIZE) {
@@ -600,22 +600,21 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
           g.ballot(key_empty<K>(&current_key) || key_compare<K>(&insert_key, &current_key));
       if (found_or_empty_vote) {
         found_or_empty = true;
-        key_pos = tile_offset + __ffs(found_or_empty_vote) - 1;
+        key_pos = (start_idx + __ffs(found_or_empty_vote) - 1) % bucket_max_size;
         break;
       }
     }
     if (rank == 0) {
       if (metas[key_idx] >= bucket->min_meta || found_or_empty) {
-        if (key_empty<K>(bucket->keys + key_offset)) {
+        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
+        if (key_empty<K>(bucket->keys + key_pos)) {
           table->buckets_size[bkt_idx]++;
         }
-
-        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
         bucket->keys[key_pos] = insert_key;
         bucket->metas[key_pos].val = metas[key_idx];
 
         /// Re-locate the smallest meta.
-        if (!empty) {
+        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
           refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
         }
 
