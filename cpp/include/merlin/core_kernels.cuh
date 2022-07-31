@@ -462,9 +462,10 @@ __forceinline__ __device__ void refresh_bucket_meta(
 */
 template <class K, class V, class M, size_t DIM, size_t TILE_SIZE = 8>
 __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
-                              const K *__restrict keys, V **__restrict vectors,
-                              const M *__restrict metas,
-                              int *__restrict src_offset, size_t N) {
+                                  const K *__restrict keys,
+                                  V **__restrict vectors,
+                                  const M *__restrict metas,
+                                  int *__restrict src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
@@ -563,9 +564,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     int key_pos = -1;
     bool found_or_empty = false;
-    bool has_empty_slots = false;
     const size_t bucket_max_size = table->bucket_max_size;
-    const size_t capacity = table->capacity;
     size_t key_idx = t / TILE_SIZE;
     K insert_key = EMPTY_KEY;
     K hashed_key = EMPTY_KEY;
@@ -590,17 +589,18 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     g.sync();
 
     size_t tile_offset = 0;
-    has_empty_slots = table->buckets_size[bkt_idx] < bucket_max_size;
 #pragma unroll
-    for (tile_offset = 0; empty && tile_offset < bucket_max_size;
+    for (tile_offset = 0; tile_offset < bucket_max_size;
          tile_offset += TILE_SIZE) {
       size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
-          g.ballot(key_empty<K>(&current_key) || key_compare<K>(&insert_key, &current_key));
+          g.ballot(key_empty<K>(&current_key) ||
+                   key_compare<K>(&insert_key, &current_key));
       if (found_or_empty_vote) {
         found_or_empty = true;
-        key_pos = (start_idx + __ffs(found_or_empty_vote) - 1) % bucket_max_size;
+        key_pos =
+            (start_idx + __ffs(found_or_empty_vote) - 1) % bucket_max_size;
         break;
       }
     }
