@@ -881,7 +881,9 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
       if (found != nullptr) {
         *(found + key_idx) = local_found;
       }
-      *(dst_offset + key_idx) = key_idx;
+      if (dst_offset != nullptr) {
+        *(dst_offset + key_idx) = key_idx;
+      }
       unlock<Mutex>(*(table->locks + bkt_idx));
     }
   }
