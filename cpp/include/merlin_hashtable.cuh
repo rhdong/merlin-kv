@@ -352,6 +352,7 @@ class HashTable {
     }
 
     if (!is_pure_hbm_mode()) {
+      std::cout << "ddddddddddddddddddddddd" << std::endl;
       static_assert(
           sizeof(V *) == sizeof(uint64_t),
           "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
