@@ -578,9 +578,8 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 //    }
 //    g.sync();
 
-    size_t tile_offset = 0;
 #pragma unroll
-    for (tile_offset = 0; tile_offset < bucket_max_size;
+    for (size_t tile_offset = 0; tile_offset < bucket_max_size;
          tile_offset += TILE_SIZE) {
       size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
@@ -590,7 +589,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
       if (found_or_empty_vote) {
         found_or_empty = true;
         key_pos =
-            (start_idx + __ffs(found_or_empty_vote) - 1) % bucket_max_size;
+            (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) % bucket_max_size;
         break;
       }
     }
