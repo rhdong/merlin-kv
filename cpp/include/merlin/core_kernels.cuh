@@ -93,6 +93,10 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
       CUDA_CHECK(cudaMalloc(&((*table)->slices[i]), slice_real_size));
       (*table)->remaining_hbm_for_vectors -= slice_real_size;
     } else {
+      std::cout << "remaining_hbm_for_vectors2="
+                << (*table)->remaining_hbm_for_vectors << std::endl;
+      std::cout << "slice_real_size="
+                << slice_real_size << std::endl;
       (*table)->is_pure_hbm = false;
       CUDA_CHECK(cudaMallocHost(&((*table)->slices[i]), slice_real_size,
                                 cudaHostRegisterMapped));
