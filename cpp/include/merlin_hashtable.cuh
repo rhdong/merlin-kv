@@ -337,10 +337,8 @@ class HashTable {
     CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(found, 0, len * sizeof(bool), stream));
-    if (!is_pure_hbm_mode()) {
       CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
       CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
-    }
 
     // Determine bucket locations for reading.
     {
