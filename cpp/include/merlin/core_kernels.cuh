@@ -398,9 +398,9 @@ __global__ void read_kernel(const V *const *__restrict src, V *__restrict dst,
 
     /// Copy selected values and fill in default value for all others.
     if (mask[real_dst_offset] && src[vec_index] != nullptr) {
-      dst[real_dst_offset].value[dim_index] = src[vec_index]->value[dim_index];
+      dst[vec_index].value[dim_index] = src[vec_index]->value[dim_index];
     } else {
-      dst[real_dst_offset].value[dim_index] =
+      dst[vec_index].value[dim_index] =
           default_val[default_index].value[dim_index];
     }
   }
@@ -427,7 +427,7 @@ __global__ void read_kernel(V **__restrict src, V *__restrict dst,
         dst_offset != nullptr ? dst_offset[vec_index] : vec_index;
     int dim_index = t % DIM;
     if (src[vec_index] != nullptr) {
-      dst[real_dst_offset].value[dim_index] = src[vec_index]->value[dim_index];
+      dst[vec_index].value[dim_index] = src[vec_index]->value[dim_index];
     }
   }
 }
