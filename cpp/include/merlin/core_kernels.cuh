@@ -574,8 +574,8 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     if (rank == 0) {
       insert_key = keys[key_idx];
       hashed_key = Murmur3HashDevice(insert_key);
-      bkt_idx = hashed_key % table->buckets_num;
-      start_idx = hashed_key % start_idx;
+      bkt_idx = hashed_key & table->buckets_num;
+      start_idx = hashed_key & 128;
     }
     insert_key = g.shfl(insert_key, 0);
     bkt_idx = g.shfl(bkt_idx, 0);
