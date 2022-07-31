@@ -158,11 +158,14 @@ class HashTable {
     }
 
     Vector **d_dst;
-    int *d_src_offset;
+    int *d_src_offset = nullptr;
     CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(d_dst, 0, len * sizeof(Vector *), stream));
-    CUDA_CHECK(cudaMallocAsync(&d_src_offset, len * sizeof(int), stream));
-    CUDA_CHECK(cudaMemsetAsync(d_src_offset, 0, len * sizeof(int), stream));
+
+    if (!is_pure_hbm_mode()) {
+      CUDA_CHECK(cudaMallocAsync(&d_src_offset, len * sizeof(int), stream));
+      CUDA_CHECK(cudaMemsetAsync(d_src_offset, 0, len * sizeof(int), stream));
+    }
 
     // Determine bucket insert locations.
     {
@@ -208,7 +211,9 @@ class HashTable {
     }
 
     CUDA_CHECK(cudaFreeAsync(d_dst, stream));
-    CUDA_CHECK(cudaFreeAsync(d_src_offset, stream));
+    if(d_src_offset != nullptr) {
+      CUDA_CHECK(cudaFreeAsync(d_src_offset, stream));
+    }
 
     CUDA_CHECK(cudaStreamSynchronize(stream));
     CudaCheckError();
@@ -328,12 +333,14 @@ class HashTable {
     }
 
     Vector **src;
-    int *dst_offset;
+    int *dst_offset = nullptr;
     CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(found, 0, len * sizeof(bool), stream));
-    CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
-    CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
+    if (!is_pure_hbm_mode()) {
+      CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
+      CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
+    }
 
     // Determine bucket locations for reading.
     {

@@ -290,8 +290,13 @@ __global__ void write_kernel(const V *__restrict src, V **__restrict dst,
     int dim_index = t % DIM;
 
     if (dst[vec_index] != nullptr) {
-      (*(dst[vec_index])).value[dim_index] =
-          src[src_offset[vec_index]].value[dim_index];
+      if(src_offset != nullptr) {
+        (*(dst[vec_index])).value[dim_index] =
+            src[src_offset[vec_index]].value[dim_index];
+      } else {
+        (*(dst[vec_index])).value[dim_index] =
+            src[vec_index].value[dim_index];
+      }
     }
   }
 }
@@ -551,7 +556,7 @@ __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
     }
   }
 }
-template <class K, class V, class M, size_t DIM, size_t TILE_SIZE = 4>
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 4>
 __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
                               const M *__restrict metas,
@@ -564,12 +569,12 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     int key_pos = -1;
     bool found_or_empty = false;
-    const unsigned int bucket_max_size = table->bucket_max_size;
+    const uint32_t bucket_max_size = table->bucket_max_size;
     size_t key_idx = t / TILE_SIZE;
     K insert_key = keys[key_idx];
-    unsigned int hashed_key = Murmur3HashDevice(insert_key) & 0xFFFFFFFF;
-    unsigned int bkt_idx = hashed_key & (table->buckets_num - 1);
-    unsigned int start_idx = hashed_key & (bucket_max_size / TILE_SIZE - 1);
+    uint32_t hashed_key = Murmur3HashDevice(insert_key) & 0xFFFFFFFF;
+    uint32_t bkt_idx = hashed_key & (table->buckets_num - 1);
+    uint32_t start_idx = hashed_key & (bucket_max_size / TILE_SIZE - 1);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
@@ -579,9 +584,9 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 //    g.sync();
 
 #pragma unroll
-    for (unsigned int tile_offset = 0; tile_offset < bucket_max_size;
+    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
          tile_offset += TILE_SIZE) {
-      unsigned int key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
+      uint32_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
           g.ballot(key_empty<K>(&current_key) ||
@@ -612,7 +617,9 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
         if (vectors[key_idx] == nullptr) {
           vectors[key_idx] = (bucket->vectors + key_pos);
         }
-        src_offset[key_idx] = key_idx;
+        if (src_offset!= nullptr) {
+          src_offset[key_idx] = key_idx;
+        }
       }
     }
 
@@ -628,7 +635,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
    the `bucket->cur_meta` which always increment by 1 when insert happens,
    we assume the cur_meta with `size_t` type will never overflow.
 */
-template <class K, class V, class M, size_t DIM, size_t TILE_SIZE = 8>
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
                               int *__restrict src_offset, size_t N) {
@@ -722,7 +729,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
    the `bucket->cur_meta` which always increment by 1 when insert happens,
    we assume the cur_meta with `size_t` type will never overflow.
 */
-template <class K, class V, class M, size_t DIM, size_t TILE_SIZE = 8>
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
                              const K *__restrict keys, V **__restrict vectors,
                              const bool *__restrict existed,
@@ -818,7 +825,7 @@ __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
 }
 
 /* Lookup with no meta.*/
-template <class K, class V, class M, size_t DIM, unsigned int TILE_SIZE = 8>
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
                               M *__restrict metas, bool *__restrict found,
