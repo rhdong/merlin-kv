@@ -154,6 +154,7 @@ void create_table(Table<K, V, M, DIM> **table, size_t init_size = 134217728,
   (*table)->bytes_per_slice = bytes_per_slice;
   (*table)->max_size = max_size;
   (*table)->tile_size = tile_size;
+  (*table)->is_pure_hbm = true;
 
   (*table)->buckets_num = 1;
   while ((*table)->buckets_num * (*table)->bucket_max_size < init_size) {
