@@ -82,7 +82,7 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
 
   for (size_t i = (*table)->num_of_memory_slices;
        i < (*table)->num_of_memory_slices + num_of_memory_slices; i++) {
-    if (i == num_of_memory_slices - 1) {
+    if (i == (*table)->num_of_memory_slices + num_of_memory_slices - 1) {
       num_of_buckets_in_one_slice = buckets_num - num_of_allocated_buckets;
     }
     size_t slice_real_size =
