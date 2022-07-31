@@ -182,7 +182,6 @@ class HashTable {
                                                    d_src_offset, N);
       }
     }
-    std::cout << "is_pure_hbm_mode=" << is_pure_hbm_mode() << std::endl;
 
     if (!is_pure_hbm_mode()) {
       static_assert(
