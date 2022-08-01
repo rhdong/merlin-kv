@@ -562,7 +562,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     size_t bkt_idx = hashed_key & (524288 - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
-    Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
+    const Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
 //    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
 #pragma unroll
