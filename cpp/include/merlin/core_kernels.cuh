@@ -99,9 +99,6 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
                           (*table)->bucket_max_size * sizeof(K)));
     CUDA_CHECK(cudaMemset((*table)->buckets[i].keys, 0xFF,
                           (*table)->bucket_max_size * sizeof(K)));
-  }
-
-  for (int i = start; i < end; i++) {
     CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].metas),
                           (*table)->bucket_max_size * sizeof(Meta<M>)));
   }
@@ -545,7 +542,7 @@ __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
-                              const M *__restrict metas, const Bucket<K, V, M, DIM> *__restrict buckets,
+                              const M *__restrict metas, //const Bucket<K, V, M, DIM> *__restrict buckets,
                               int *__restrict src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -562,7 +559,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     size_t bkt_idx = hashed_key & (524288 - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
-    const Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
+    const Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 //    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
 #pragma unroll
