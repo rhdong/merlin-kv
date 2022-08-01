@@ -72,7 +72,7 @@ template <class Key>
 __global__ void upsert_kernel(const Key *__restrict keys,
                               const Bucket<K> *__restrict buckets,
                               int *__restrict d_sizes, V **__restrict vectors,
-                              int *__restrict d_src_offset, size_t N) {
+                              int *__restrict src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
