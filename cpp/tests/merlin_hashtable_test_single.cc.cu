@@ -96,14 +96,14 @@ int test_main() {
   bool *h_found;
 
   std::unique_ptr<Table> table_ =
-      std::make_unique<Table>(INIT_SIZE,         /* init_size */
-                              MAX_SIZE,          /* max_size */
+      std::make_unique<Table>(INIT_SIZE,          /* init_size */
+                              MAX_SIZE,           /* max_size */
                               nv::merlin::GB(16), /* max_hbm_for_vectors */
-                              0.75,              /* max_load_factor */
-                              128,               /* buckets_max_size */
-                              nullptr,           /* initializer */
-                              true,              /* primary */
-                              1024               /* block_size */
+                              0.75,               /* max_load_factor */
+                              128,                /* buckets_max_size */
+                              nullptr,            /* initializer */
+                              true,               /* primary */
+                              1024                /* block_size */
       );
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));          // 8MB
@@ -113,14 +113,13 @@ int test_main() {
 
   cudaMemset(h_vectors, 0, KEY_NUM * sizeof(Vector));
 
-
   K *d_keys;
   M *d_metas = nullptr;
   Vector *d_vectors;
 
-  cudaMalloc(&d_keys, KEY_NUM * sizeof(K));                // 8MB
-  cudaMalloc(&d_metas, KEY_NUM * sizeof(M));               // 8MB
-  cudaMalloc(&d_vectors, KEY_NUM * sizeof(Vector));        // 256MB
+  cudaMalloc(&d_keys, KEY_NUM * sizeof(K));          // 8MB
+  cudaMalloc(&d_metas, KEY_NUM * sizeof(M));         // 8MB
+  cudaMalloc(&d_vectors, KEY_NUM * sizeof(Vector));  // 256MB
 
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
   cudaMemcpy(d_metas, h_metas, KEY_NUM * sizeof(M), cudaMemcpyHostToDevice);
@@ -142,15 +141,11 @@ int test_main() {
                            d_metas, KEY_NUM, false, stream);
   auto end_insert_or_assign = std::chrono::steady_clock::now();
 
-  cur_load_factor = table_->load_factor();
   std::chrono::duration<double> diff_insert_or_assign =
       end_insert_or_assign - start_insert_or_assign;
-  printf(
-      "[prepare] insert_or_assign=%.2fms\n",
-      diff_insert_or_assign.count() * 1000,
-      );
+  printf("[prepare] insert_or_assign=%.2fms\n",
+         diff_insert_or_assign.count() * 1000);
   cudaStreamDestroy(stream);
-
 
   cudaFreeHost(h_keys);
   cudaFreeHost(h_metas);

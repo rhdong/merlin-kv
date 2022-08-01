@@ -567,8 +567,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
       size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
-          g.ballot(current_key == EMPTY_KEY ||
-                   insert_key == current_key);
+          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         found_or_empty = true;
         key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
@@ -789,9 +788,10 @@ __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
 /* Lookup with no meta.*/
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void lookup_kernel_old(const Table<K, V, M, DIM> *__restrict table,
-                              const K *__restrict keys, V **__restrict vectors,
-                              M *__restrict metas, bool *__restrict found,
-                              int *__restrict dst_offset, size_t N) {
+                                  const K *__restrict keys,
+                                  V **__restrict vectors, M *__restrict metas,
+                                  bool *__restrict found,
+                                  int *__restrict dst_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   const size_t buckets_num = table->buckets_num;
   const size_t bucket_max_size = table->bucket_max_size;
@@ -858,8 +858,8 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
   int rank = g.thread_rank();
 
-  for (size_t t = (blockIdx.x * blockDim.x) + threadIdx.x; t < N; t += blockDim.x * gridDim.x) {
-
+  for (size_t t = (blockIdx.x * blockDim.x) + threadIdx.x; t < N;
+       t += blockDim.x * gridDim.x) {
     int key_idx = t / TILE_SIZE;
     int key_pos = -1;
     bool local_found = false;
@@ -880,7 +880,8 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
          tile_offset += TILE_SIZE) {
       key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       current_key = *(bucket->keys + key_offset);
-      auto const found_or_empty_vote = g.ballot(find_key == current_key || current_key == EMPTY_KEY);
+      auto const found_or_empty_vote =
+          g.ballot(find_key == current_key || current_key == EMPTY_KEY);
       if (found_or_empty_vote) {
         key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
                   bucket_max_size;

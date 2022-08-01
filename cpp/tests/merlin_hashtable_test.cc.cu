@@ -96,14 +96,14 @@ int test_main() {
   bool *h_found;
 
   std::unique_ptr<Table> table_ =
-      std::make_unique<Table>(INIT_SIZE,         /* init_size */
-                              MAX_SIZE,          /* max_size */
+      std::make_unique<Table>(INIT_SIZE,          /* init_size */
+                              MAX_SIZE,           /* max_size */
                               nv::merlin::GB(16), /* max_hbm_for_vectors */
-                              0.75,              /* max_load_factor */
-                              128,               /* buckets_max_size */
-                              nullptr,           /* initializer */
-                              true,              /* primary */
-                              1024               /* block_size */
+                              0.75,               /* max_load_factor */
+                              128,                /* buckets_max_size */
+                              nullptr,            /* initializer */
+                              true,               /* primary */
+                              1024                /* block_size */
       );
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));          // 8MB
