@@ -555,9 +555,9 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     const size_t bucket_max_size = 128;//table->bucket_max_size;
     size_t key_idx = t / TILE_SIZE;
     K insert_key = keys[key_idx];
-    K hashed_key = Murmur3HashDevice(insert_key);
-    size_t bkt_idx = hashed_key & (524288 - 1);
-    size_t start_idx = hashed_key & (bucket_max_size - 1);
+//    K hashed_key = Murmur3HashDevice(insert_key);
+    size_t bkt_idx = insert_key & (524288 - 1);
+    size_t start_idx = insert_key & (bucket_max_size - 1);
 
     const Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
 //    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
