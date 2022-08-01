@@ -551,15 +551,15 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     int key_pos = -1;
     bool found_or_empty = false;
-    const size_t bucket_max_size = table->bucket_max_size;
+    const size_t bucket_max_size = 128;//table->bucket_max_size;
     size_t key_idx = t / TILE_SIZE;
     K insert_key = keys[key_idx];
     K hashed_key = Murmur3HashDevice(insert_key);
-    size_t bkt_idx = hashed_key & (table->buckets_num - 1);
+    size_t bkt_idx = hashed_key & (524288 - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
-    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+//    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
@@ -599,7 +599,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 //        }
 //      }
 //    }
-    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+//    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
 
