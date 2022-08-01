@@ -72,7 +72,7 @@ template <class Key>
 __global__ void upsert_kernel(const Key *__restrict keys,
                               const Bucket<K> *__restrict buckets,
                               int *__restrict d_sizes, V **__restrict vectors,
-                              size_t N) {
+                              int *__restrict d_src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
@@ -105,9 +105,9 @@ __global__ void upsert_kernel(const Key *__restrict keys,
       }
     }
     if (rank == 0) {
-      if (metas[key_idx] >= bucket->min_meta || found_or_empty) {
+      if (found_or_empty) {
         key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
-        if (key_empty<K>(bucket->keys + key_pos)) {
+        if (*(bucket->keys + key_pos) == EMPTY_KEY) {
           *(d_sizes + bkt_idx)++;
         }
         bucket->keys[key_pos] = insert_key;
@@ -146,11 +146,13 @@ int main() {
 
   create_continuous_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
-  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors, N);
+  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors,
+                                              nullptr, N);
   cudaDeviceSynchronize();
 
   auto start_insert_or_assign = std::chrono::steady_clock::now();
-  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors, N);
+  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors,
+                                              nullptr, N);
   cudaDeviceSynchronize();
   auto end_insert_or_assign = std::chrono::steady_clock::now();
 
