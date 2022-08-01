@@ -883,7 +883,7 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
       if (found_or_empty_vote) {
         key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
                   bucket_max_size;
-        local_found = (*(bucket->keys + key_pos) == insert_key);
+        local_found = (*(bucket->keys + key_pos) == find_key);
         break;
       }
     }
