@@ -72,7 +72,7 @@ constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024UL;
 constexpr uint64_t MAX_SIZE = INIT_SIZE;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 1;
-constexpr uint64_t DIM = 4;
+constexpr uint64_t DIM = 64;
 constexpr float target_load_factor = 0.032;
 
 template <class K, class M>
