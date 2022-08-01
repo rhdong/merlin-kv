@@ -542,7 +542,8 @@ __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
-                              const M *__restrict metas, const Bucket<K, V, M, DIM> *__restrict buckets,
+                              const M *__restrict metas,
+                              const Bucket<K, V, M, DIM> *__restrict buckets,
                               int *__restrict src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -552,15 +553,15 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     int key_pos = -1;
     bool found_or_empty = false;
-    const size_t bucket_max_size = 128;//table->bucket_max_size;
+    const size_t bucket_max_size = 128;  // table->bucket_max_size;
     size_t key_idx = t / TILE_SIZE;
     K insert_key = keys[key_idx];
-//    K hashed_key = Murmur3HashDevice(insert_key);
+    //    K hashed_key = Murmur3HashDevice(insert_key);
     size_t bkt_idx = insert_key & (524288 - 1);
     size_t start_idx = insert_key & (bucket_max_size - 1);
 
     const Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
-//    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+    //    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
@@ -576,31 +577,31 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
         break;
       }
     }
-//    if (rank == 0) {
-//      if (metas[key_idx] >= bucket->min_meta || found_or_empty) {
-//        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
-//        if (key_empty<K>(bucket->keys + key_pos)) {
-//          table->buckets_size[bkt_idx]++;
-//        }
-//        bucket->keys[key_pos] = insert_key;
-//        bucket->metas[key_pos].val = metas[key_idx];
-//
-//        /// Re-locate the smallest meta.
-//        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
-//          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
-//        }
-//
-//        /// Record storage offset. This will be used by write_kernel to map
-//        /// the input to the output data.
-//        if (vectors[key_idx] == nullptr) {
-//          vectors[key_idx] = (bucket->vectors + key_pos);
-//        }
-//        if (src_offset != nullptr) {
-//          src_offset[key_idx] = key_idx;
-//        }
-//      }
-//    }
-//    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+    if (rank == 0) {
+      if (metas[key_idx] >= bucket->min_meta || found_or_empty) {
+        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
+        if (key_empty<K>(bucket->keys + key_pos)) {
+          table->buckets_size[bkt_idx]++;
+        }
+        bucket->keys[key_pos] = insert_key;
+        bucket->metas[key_pos].val = metas[key_idx];
+
+        /// Re-locate the smallest meta.
+        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
+          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
+        }
+
+        /// Record storage offset. This will be used by write_kernel to map
+        /// the input to the output data.
+        if (vectors[key_idx] == nullptr) {
+          vectors[key_idx] = (bucket->vectors + key_pos);
+        }
+        if (src_offset != nullptr) {
+          src_offset[key_idx] = key_idx;
+        }
+      }
+    }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
 

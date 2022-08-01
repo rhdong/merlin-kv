@@ -58,7 +58,7 @@ constexpr const size_t N = KEY_NUM * TILE_SIZE;
 constexpr const size_t GRID_SIZE = ((N)-1) / BLOCK_SIZE + 1;
 constexpr int BUCKETS_NUM = INIT_SIZE / MAX_BUCKET_SIZE;
 
-__inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const& key) {
+__inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const &key) {
   uint64_t k = key;
   k ^= k >> 33;
   k *= UINT64_C(0xff51afd7ed558ccd);
@@ -70,7 +70,9 @@ __inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const& key) {
 
 template <class Key>
 __global__ void upsert_kernel(const Key *__restrict keys,
-                              const Bucket<K> *__restrict buckets, size_t N) {
+                              const Bucket<K> *__restrict buckets,
+                              int *__restrict d_sizes, V **__restrict vectors,
+                              size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
@@ -102,12 +104,31 @@ __global__ void upsert_kernel(const Key *__restrict keys,
         break;
       }
     }
+    if (rank == 0) {
+      if (metas[key_idx] >= bucket->min_meta || found_or_empty) {
+        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
+        if (key_empty<K>(bucket->keys + key_pos)) {
+          *(d_sizes + bkt_idx)++;
+        }
+        bucket->keys[key_pos] = insert_key;
+
+        /// Record storage offset. This will be used by write_kernel to map
+        /// the input to the output data.
+        if (vectors[key_idx] == nullptr) {
+          vectors[key_idx] = (bucket->vectors + key_pos);
+        }
+        if (src_offset != nullptr) {
+          src_offset[key_idx] = key_idx;
+        }
+      }
+    }
   }
 }
 int main() {
-
   K *h_keys;
   K *d_keys;
+  int *d_sizes;
+  V **vectors;
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));
   cudaMalloc(&d_keys, KEY_NUM * sizeof(K));
@@ -117,13 +138,19 @@ int main() {
     cudaMalloc(&(buckets[i].keys), sizeof(K) * MAX_BUCKET_SIZE);
     cudaMemset(buckets[i].keys, 0xFF, sizeof(K) * MAX_BUCKET_SIZE);
   }
+  cudaMalloc(&(d_sizes), sizeof(int) * BUCKETS_NUM);
+  cudaMemset(d_sizes, 0, sizeof(int) * BUCKETS_NUM);
+
+  cudaMalloc(&(vectors), sizeof(V *) * KEY_NUM);
+  cudaMemset(vectors, 0, sizeof(V *) * KEY_NUM);
+
   create_continuous_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
   cudaDeviceSynchronize();
 
   auto start_insert_or_assign = std::chrono::steady_clock::now();
-  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
+  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, N);
   cudaDeviceSynchronize();
   auto end_insert_or_assign = std::chrono::steady_clock::now();
 
@@ -140,12 +167,13 @@ int main() {
   cudaFree(buckets);
   cudaFreeHost(h_keys);
   cudaFree(d_keys);
+  cudaFree(d_sizes);
+  cudaFree(vectors);
   std::chrono::duration<double> diff_insert_or_assign =
       end_insert_or_assign - start_insert_or_assign;
 
-  printf(
-      "[prepare] insert_or_assign=%.2fms\n",
-      diff_insert_or_assign.count() * 1000);
+  printf("[prepare] insert_or_assign=%.2fms\n",
+         diff_insert_or_assign.count() * 1000);
   std::cout << "COMPLETED SUCCESSFULLY\n";
 
   return 0;

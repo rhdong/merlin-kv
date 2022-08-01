@@ -178,8 +178,8 @@ class HashTable {
                                                    d_src_offset, N);
       } else {
         upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
-            <<<grid_size, block_size, 0, stream>>>(table_, keys, d_dst, metas, table_->buckets,
-                                                   d_src_offset, N);
+            <<<grid_size, block_size, 0, stream>>>(
+                table_, keys, d_dst, metas, table_->buckets, d_src_offset, N);
       }
     }
 
