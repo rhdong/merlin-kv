@@ -81,7 +81,7 @@ int main() {
   cudaMallocManaged(&buckets, sizeof(Bucket<K>) * BUCKETS_NUM);
   for (int i = 0; i < BUCKETS_NUM; i++) {
     cudaMalloc(&(buckets[i].keys), sizeof(K) * MAX_BUCKET_SIZE);
-    cudaMemset(&(buckets[i].keys), 0xFF, sizeof(K) * MAX_BUCKET_SIZE);
+    cudaMemset(buckets[i].keys, 0xFF, sizeof(K) * MAX_BUCKET_SIZE);
   }
   create_continuous_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
@@ -101,7 +101,7 @@ int main() {
   }
 
   for (int i = 0; i < BUCKETS_NUM; i++) {
-    cudaFree(&(buckets[i].keys));
+    cudaFree(buckets[i].keys);
   }
   cudaFree(buckets);
   cudaFreeHost(h_keys);
