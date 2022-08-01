@@ -100,9 +100,6 @@ __global__ void d2h_hbm_data(
         (*(dst[vec_index])).values[dim_index] =
             src[vec_index].values[dim_index];
     }
-
-    //     src[vec_index].values[dim_index] =
-    //     (*(dst[vec_index])).values[dim_index];
   }
 }
 
@@ -166,7 +163,7 @@ int main() {
   Vector **dst_ptr;
   cudaMalloc(&src, KEY_NUM * sizeof(Vector));
   cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector *));
-  cudaMallocHost(&dst, vectors_size);
+  cudaMalloc(&dst, vectors_size);
 
   create_random_offset_ordered(h_offset, KEY_NUM, INIT_SIZE);
   cudaMemcpy(d_offset, h_offset, sizeof(int) * KEY_NUM, cudaMemcpyHostToDevice);
@@ -203,7 +200,7 @@ int main() {
   printf("[timing] HBM data d2h=%.2fms\n",
          diff_test.count() * 1000 / TEST_TIMES);
 
-  cudaFreeHost(dst);
+  cudaFree(dst);
   cudaFreeHost(h_offset);
   cudaFreeHost(h_src_idx);
   cudaFree(dst_ptr);
