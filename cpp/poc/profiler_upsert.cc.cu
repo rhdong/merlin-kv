@@ -91,6 +91,13 @@ int main() {
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
   cudaDeviceSynchronize();
   auto end_insert_or_assign = std::chrono::steady_clock::now();
+  
+  cudaError err = cudaGetLastError();
+  if (cudaSuccess != err) {
+    fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n", file, line,
+            cudaGetErrorString(err));
+    exit(-1);
+  }
 
   for (int i = 0; i < BUCKETS_NUM; i++) {
     cudaFree(&(buckets[i].keys));
@@ -102,7 +109,7 @@ int main() {
       end_insert_or_assign - start_insert_or_assign;
 
   printf(
-      "[prepare] insert_or_assign=%.2fmsf\n",
+      "[prepare] insert_or_assign=%.2fms\n",
       diff_insert_or_assign.count() * 1000);
   std::cout << "COMPLETED SUCCESSFULLY\n";
 
