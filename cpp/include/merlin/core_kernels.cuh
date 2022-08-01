@@ -83,7 +83,7 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
     } else {
       (*table)->is_pure_hbm = false;
       CUDA_CHECK(cudaMallocHost(&((*table)->slices[i]), slice_real_size,
-                                cudaHostRegisterMapped));
+                                cudaHostAllocMapped));
     }
     for (int j = 0; j < num_of_buckets_in_one_slice; j++) {
       (*table)->buckets[start + num_of_allocated_buckets + j].vectors =
