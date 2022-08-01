@@ -81,7 +81,7 @@ __global__ void d2h_hbm_data_all(
   }
 }
 
-#define TILE_SIZE 16
+#define TILE_SIZE 8
 
 __global__ void d2h_hbm_data(
     Vector *__restrict src, Vector **__restrict dst,
