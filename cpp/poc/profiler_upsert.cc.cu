@@ -52,23 +52,23 @@ __global__ void upsert_kernel(const K *__restrict keys,
     size_t bkt_idx = hashed_key & (BUCKETS_NUM - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
-    const Bucket<K> *bucket = buckets + bkt_idx;
-
-#pragma unroll
-    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
-         tile_offset += TILE_SIZE) {
-      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
-      K current_key = *(bucket->keys + key_offset);
-      auto const found_or_empty_vote =
-          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
-      if (found_or_empty_vote) {
-        found_or_empty = true;
-        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
-                  bucket_max_size;
-        break;
-      }
-    }
-  }
+//    const Bucket<K> *bucket = buckets + bkt_idx;
+//
+//#pragma unroll
+//    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
+//         tile_offset += TILE_SIZE) {
+//      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
+//      K current_key = *(bucket->keys + key_offset);
+//      auto const found_or_empty_vote =
+//          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
+//      if (found_or_empty_vote) {
+//        found_or_empty = true;
+//        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
+//                  bucket_max_size;
+//        break;
+//      }
+//    }
+//  }
 }
 int main() {
 
@@ -87,6 +87,7 @@ int main() {
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
   cudaDeviceSynchronize();
+
   auto start_insert_or_assign = std::chrono::steady_clock::now();
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
   cudaDeviceSynchronize();
@@ -94,7 +95,7 @@ int main() {
 
   cudaError err = cudaGetLastError();
   if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() failed  : %s\n",
+    fprintf(stderr, "cudaCheckError() failed1  : %s\n",
             cudaGetErrorString(err));
     exit(-1);
   }
