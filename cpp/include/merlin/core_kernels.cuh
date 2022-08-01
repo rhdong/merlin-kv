@@ -555,8 +555,8 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     size_t key_idx = t / TILE_SIZE;
     K insert_key = keys[key_idx];
     K hashed_key = Murmur3HashDevice(insert_key);
-    uint32_t bkt_idx = hashed_key & (table->buckets_num - 1);
-    uint32_t start_idx = hashed_key & (bucket_max_size - 1);
+    size_t bkt_idx = hashed_key & (table->buckets_num - 1);
+    size_t start_idx = hashed_key & (bucket_max_size - 1);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
@@ -565,7 +565,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
          tile_offset += TILE_SIZE) {
-      uint32_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
+      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
           g.ballot(current_key == EMPTY_KEY ||
@@ -867,8 +867,8 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     K find_key = keys[key_idx];
     K hashed_key = Murmur3HashDevice(find_key);
-    uint32_t bkt_idx = hashed_key & (table->buckets_num - 1);
-    uint32_t start_idx = hashed_key & (bucket_max_size - 1);
+    size_t bkt_idx = hashed_key & (table->buckets_num - 1);
+    size_t start_idx = hashed_key & (bucket_max_size - 1);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
     lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
@@ -877,7 +877,7 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
 #pragma unroll
     for (tile_offset = 0; tile_offset < bucket_max_size;
          tile_offset += TILE_SIZE) {
-      uint32_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
+      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote = g.ballot(find_key == current_key || current_key == EMPTY_KEY);
       if (found_or_empty_vote) {
