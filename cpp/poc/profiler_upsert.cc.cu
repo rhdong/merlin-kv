@@ -168,6 +168,7 @@ int main() {
 
   for (int i = 0; i < BUCKETS_NUM; i++) {
     buckets[i].keys = d_all_keys + i * MAX_BUCKET_SIZE;
+    cudaMalloc(&(buckets[i].vectors), sizeof(V) * MAX_BUCKET_SIZE * DIM);
   }
   cudaMalloc(&(d_sizes), sizeof(int) * BUCKETS_NUM);
   cudaMemset(d_sizes, 0, sizeof(int) * BUCKETS_NUM);
@@ -194,7 +195,9 @@ int main() {
             cudaGetErrorString(err));
     exit(-1);
   }
-
+  for (int i = 0; i < BUCKETS_NUM; i++) {
+    cudaFree(buckets[i].vectors);
+  }
   cudaFree(d_all_keys);
   cudaFree(values);
   cudaFree(buckets);
