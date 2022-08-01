@@ -10,7 +10,7 @@ namespace cg = cooperative_groups;
 #include <thread>
 #include <unordered_set>
 
-typedef float V;
+typedef uint64_t K;
 
 constexpr int DIM = 64;
 struct Vector {
@@ -27,7 +27,7 @@ void create_continuous_keys(K *h_keys, int KEY_NUM, K start = 0) {
 template <class K>
 struct Bucket {
   K *keys;
-}
+};
 
 constexpr int KEY_NUM = 1024 * 1024;
 constexpr int INIT_SIZE = KEY_NUM * 64;
@@ -35,7 +35,7 @@ constexpr int MAX_BUCKET_SIZE = 128;
 constexpr const size_t BLOCK_SIZE = 128;
 constexpr int TILE_SIZE = 8;
 constexpr const size_t N = KEY_NUM * TILE_SIZE;
-constexpr const size_t GRID_SIZE = ((N)-1) / BLOCK_SIZE + 1
+constexpr const size_t GRID_SIZE = ((N)-1) / BLOCK_SIZE + 1;
 constexpr int BUCKETS_NUM = INIT_SIZE / MAX_BUCKET_SIZE;
 
 template <class K>
