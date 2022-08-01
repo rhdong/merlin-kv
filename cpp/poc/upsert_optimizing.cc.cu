@@ -96,9 +96,8 @@ __global__ void d2h_hbm_data(
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < DIM;
          tile_offset += TILE_SIZE) {
-        dim_index = tile_offset + rank;
-        (*(dst[vec_index])).values[dim_index] =
-            src[vec_index].values[dim_index];
+      dim_index = tile_offset + rank;
+      (*(dst[vec_index])).values[dim_index] = src[vec_index].values[dim_index];
     }
   }
 }

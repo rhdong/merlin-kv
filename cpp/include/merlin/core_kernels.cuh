@@ -574,7 +574,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     K insert_key = keys[key_idx];
     uint32_t hashed_key = Murmur3HashDevice(insert_key) & 0xFFFFFFFF;
     uint32_t bkt_idx = hashed_key & (table->buckets_num - 1);
-    uint32_t start_idx = hashed_key & (bucket_max_size / TILE_SIZE - 1);
+    uint32_t start_idx = hashed_key & (bucket_max_size - 1);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
@@ -605,12 +605,12 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
           table->buckets_size[bkt_idx]++;
         }
         bucket->keys[key_pos] = insert_key;
-        //        bucket->metas[key_pos].val = metas[key_idx];
+        bucket->metas[key_pos].val = metas[key_idx];
 
-        //        /// Re-locate the smallest meta.
-        //        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
-        //          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
-        //        }
+        /// Re-locate the smallest meta.
+        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
+          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
+        }
 
         /// Record storage offset. This will be used by write_kernel to map
         /// the input to the output data.
