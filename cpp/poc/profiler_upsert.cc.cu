@@ -12,11 +12,6 @@ namespace cg = cooperative_groups;
 
 typedef uint64_t K;
 
-constexpr int DIM = 64;
-struct Vector {
-  V values[DIM];
-};
-
 template <class K>
 void create_continuous_keys(K *h_keys, int KEY_NUM, K start = 0) {
   for (K i = 0; i < KEY_NUM; i++) {
@@ -40,7 +35,7 @@ constexpr int BUCKETS_NUM = INIT_SIZE / MAX_BUCKET_SIZE;
 
 template <class K>
 __global__ void upsert_kernel(const K *__restrict keys,
-                              const Bucket *__restrict buckets, size_t N) {
+                              const Bucket<K> *__restrict buckets, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
@@ -75,8 +70,6 @@ __global__ void upsert_kernel(const K *__restrict keys,
   }
 }
 int main() {
-  int NUM_THREADS = 128;
-  int NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
 
   K *h_keys;
   K *d_keys;
