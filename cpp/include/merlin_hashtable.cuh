@@ -153,9 +153,9 @@ class HashTable {
       return;
     }
 
-//    if (!reach_max_size_ && load_factor() > max_load_factor_) {
-//      reserve(capacity() * 2);
-//    }
+    if (!reach_max_size_ && load_factor() > max_load_factor_) {
+      reserve(capacity() * 2);
+    }
 
     Vector **d_dst;
     int *d_src_offset = nullptr;
@@ -178,7 +178,7 @@ class HashTable {
                                                    d_src_offset, N);
       } else {
         upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
-            <<<grid_size, block_size, 0, stream>>>(table_, keys, d_dst, metas,
+            <<<grid_size, block_size, 0, stream>>>(table_, keys, d_dst, metas, table_->buckets,
                                                    d_src_offset, N);
       }
     }
@@ -202,13 +202,13 @@ class HashTable {
                           thrust::less<uint64_t>());
     }
 
-//    // Copy provided data to the bucket.
-//    {
-//      const size_t N = len * DIM;
-//      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
-//      write_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-//          reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset, N);
-//    }
+    // Copy provided data to the bucket.
+    {
+      const size_t N = len * DIM;
+      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
+      write_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
+          reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset, N);
+    }
 
     CUDA_CHECK(cudaFreeAsync(d_dst, stream));
     if (d_src_offset != nullptr) {
