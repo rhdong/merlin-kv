@@ -15,7 +15,7 @@ typedef uint64_t M;
 typedef float V;
 
 template <class K>
-void create_random_keys(K *h_keys, int KEY_NUM) {
+void create_random_keys(K *h_keys, int KEY_NUM, K start = 0) {
   std::unordered_set<K> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -171,13 +171,13 @@ int main() {
   cudaMalloc(&(vectors), sizeof(V *) * KEY_NUM);
   cudaMemset(vectors, 0, sizeof(V *) * KEY_NUM);
 
-  create_continuous_keys<K>(h_keys, KEY_NUM, 0);
+  create_random_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors,
                                               nullptr, N);
   cudaDeviceSynchronize();
 
-  create_continuous_keys<K>(h_keys, KEY_NUM, KEY_NUM);
+  create_random_keys<K>(h_keys, KEY_NUM, KEY_NUM);
   auto start_insert_or_assign = std::chrono::steady_clock::now();
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors,
                                               nullptr, N);
