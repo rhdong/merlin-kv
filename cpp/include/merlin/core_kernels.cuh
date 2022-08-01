@@ -92,6 +92,7 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
     }
     num_of_allocated_buckets += num_of_buckets_in_one_slice;
   }
+
   (*table)->num_of_memory_slices += num_of_memory_slices;
   for (int i = start; i < end; i++) {
     CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].keys),
@@ -99,10 +100,12 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
     CUDA_CHECK(cudaMemset((*table)->buckets[i].keys, 0xFF,
                           (*table)->bucket_max_size * sizeof(K)));
   }
+
   for (int i = start; i < end; i++) {
     CUDA_CHECK(cudaMalloc(&((*table)->buckets[i].metas),
                           (*table)->bucket_max_size * sizeof(Meta<M>)));
   }
+
   {
     const size_t block_size = 512;
     const size_t N = (*table)->buckets_num;

@@ -202,13 +202,13 @@ class HashTable {
                           thrust::less<uint64_t>());
     }
 
-    // Copy provided data to the bucket.
-    {
-      const size_t N = len * DIM;
-      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
-      write_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-          reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset, N);
-    }
+//    // Copy provided data to the bucket.
+//    {
+//      const size_t N = len * DIM;
+//      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
+//      write_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
+//          reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset, N);
+//    }
 
     CUDA_CHECK(cudaFreeAsync(d_dst, stream));
     if (d_src_offset != nullptr) {
