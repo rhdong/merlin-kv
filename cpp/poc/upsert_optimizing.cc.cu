@@ -188,6 +188,8 @@ int main() {
 
   start_test = std::chrono::steady_clock::now();
   {
+    d2h_hbm_data<<<NUM_BLOCKS, NUM_THREADS>>>(src, dst_ptr, N);
+    cudaDeviceSynchronize();
     constexpr int N = KEY_NUM * TILE_SIZE;
     int NUM_THREADS = 1024;
     int NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
