@@ -230,7 +230,6 @@ __global__ void rehash_kernel(const Table<K, V, M, DIM> *__restrict table,
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int bkt_idx = t / bucket_max_size;
     int key_idx = t % bucket_max_size;
-    lock<Mutex>(table->locks[bkt_idx]);
     Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
     K target_key = bucket->keys[key_idx];
     if (target_key != EMPTY_KEY) {
@@ -255,7 +254,6 @@ __global__ void rehash_kernel(const Table<K, V, M, DIM> *__restrict table,
         atomicMin(&(table->buckets_size[key_bkt_idx]), bucket_max_size);
       }
     }
-    unlock<Mutex>(table->locks[bkt_idx]);
   }
 }
 
@@ -641,10 +639,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
-    if (rank == 0) {
-      lock<Mutex>(table->locks[bkt_idx]);
-    }
-    g.sync();
+    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
     size_t tile_offset = 0;
 #pragma unroll
@@ -693,10 +688,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
       src_offset[key_idx] = key_idx;
     }
 
-    g.sync();
-    if (rank == 0) {
-      unlock<Mutex>(table->locks[bkt_idx]);
-    }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
 
@@ -737,10 +729,7 @@ __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
-    if (rank == 0) {
-      lock<Mutex>(table->locks[bkt_idx]);
-    }
-    g.sync();
+    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
     size_t tile_offset = 0;
 #pragma unroll
@@ -793,10 +782,7 @@ __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
       src_offset[key_idx] = key_idx;
     }
 
-    g.sync();
-    if (rank == 0) {
-      unlock<Mutex>(table->locks[bkt_idx]);
-    }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
 
@@ -830,11 +816,7 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
     bkt_idx = g.shfl(bkt_idx, 0);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
-    //
-    //    if (rank == 0) {
-    //      lock<Mutex>(*(table->locks + bkt_idx));
-    //    }
-    //    g.sync();
+    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
     size_t tile_offset = 0;
 #pragma unroll
@@ -849,7 +831,6 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
       }
     }
 
-    //    g.sync();
     if (rank == 0) {
       *(vectors + key_idx) =
           local_found ? (bucket->vectors + key_pos) : nullptr;
@@ -862,8 +843,8 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
       if (dst_offset != nullptr) {
         *(dst_offset + key_idx) = key_idx;
       }
-      //      unlock<Mutex>(*(table->locks + bkt_idx));
     }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
 
@@ -902,7 +883,6 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
     int bkt_idx = hashed_key % buckets_num;
     K target_key = keys[key_idx];
     Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
-    lock<Mutex>(table->locks[bkt_idx]);
     /// Prober the current key. Clear it if equal. Then clear metadata to
     /// indicate the field is free.
     K old_key = atomicCAS((K *)&bucket->keys[key_pos], target_key, EMPTY_KEY);
@@ -912,7 +892,6 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
       atomicMax(&(table->buckets_size[bkt_idx]), 0);
       atomicAdd(count, 1);
     }
-    unlock<Mutex>(table->locks[bkt_idx]);
   }
 }
 
@@ -927,7 +906,6 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
     int key_idx = t % bucket_max_size;
     int bkt_idx = t / bucket_max_size;
     Bucket<K, V, M, DIM> *bucket = &(table->buckets[bkt_idx]);
-    lock<Mutex>(table->locks[bkt_idx]);
     if (table->buckets_size[bkt_idx] > 0) {
       K target_key = bucket->keys[key_idx];
       if (target_key != EMPTY_KEY) {
@@ -940,7 +918,6 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
         }
       }
     }
-    unlock<Mutex>(table->locks[bkt_idx]);
   }
 }
 
