@@ -99,10 +99,13 @@ __global__ void upsert_kernel(const Key *__restrict keys,
     int key_pos = -1;
     bool found_or_empty = false;
     size_t key_idx = t / TILE_SIZE;
+    Key insert_key;
+    size_t bkt_idx;
+    size_t start_idx;
     if(rank == 0) {
-      Key insert_key = *(keys + key_idx);
-      size_t bkt_idx = insert_key & (BUCKETS_NUM - 1);
-      size_t start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
+      insert_key = *(keys + key_idx);
+      bkt_idx = insert_key & (BUCKETS_NUM - 1);
+      start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
     }
 
     insert_key = g.shfl(insert_key, 0);
