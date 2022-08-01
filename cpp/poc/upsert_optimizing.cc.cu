@@ -162,7 +162,7 @@ int main() {
   Vector **dst_ptr;
   cudaMalloc(&src, KEY_NUM * sizeof(Vector));
   cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector *));
-  cudaMallocHost(&dst, vectors_size, cudaHostAllocMapped);
+  cudaMallocHost(&dst, vectors_size, cudaHostAllocMapped | cudaHostAllocWriteCombined);
 
   create_random_offset_ordered(h_offset, KEY_NUM, INIT_SIZE);
   cudaMemcpy(d_offset, h_offset, sizeof(int) * KEY_NUM, cudaMemcpyHostToDevice);
