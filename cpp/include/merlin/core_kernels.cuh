@@ -879,7 +879,7 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
          tile_offset += TILE_SIZE) {
       uint32_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
-      auto const found_or_empty_vote = g.ballot(find_key == current_key || current_key == EMPTY_KEY));
+      auto const found_or_empty_vote = g.ballot(find_key == current_key || current_key == EMPTY_KEY);
       if (found_or_empty_vote) {
         key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
                   bucket_max_size;
