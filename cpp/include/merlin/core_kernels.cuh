@@ -82,8 +82,9 @@ void initialize_buckets(Table<K, V, M, DIM> **table, size_t start, size_t end) {
       (*table)->remaining_hbm_for_vectors -= slice_real_size;
     } else {
       (*table)->is_pure_hbm = false;
-      CUDA_CHECK(cudaMallocHost(&((*table)->slices[i]), slice_real_size,
-                                cudaHostAllocMapped | cudaHostAllocWriteCombined));
+      CUDA_CHECK(
+          cudaMallocHost(&((*table)->slices[i]), slice_real_size,
+                         cudaHostAllocMapped | cudaHostAllocWriteCombined));
     }
     for (int j = 0; j < num_of_buckets_in_one_slice; j++) {
       (*table)->buckets[start + num_of_allocated_buckets + j].vectors =
@@ -567,8 +568,8 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
       uint32_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
       K current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
-          g.ballot(key_empty<K>(&current_key) ||
-                   key_compare<K>(&insert_key, &current_key));
+          g.ballot(current_key == EMPTY_KEY ||
+                   insert_key == current_key);
       if (found_or_empty_vote) {
         found_or_empty = true;
         key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) %

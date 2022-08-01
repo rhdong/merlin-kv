@@ -72,7 +72,7 @@ constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024UL;
 constexpr uint64_t MAX_SIZE = INIT_SIZE;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 1;
-constexpr uint64_t DIM = 64;
+constexpr uint64_t DIM = 4;
 constexpr float target_load_factor = 0.032;
 
 template <class K, class M>
@@ -96,14 +96,14 @@ int test_main() {
   bool *h_found;
 
   std::unique_ptr<Table> table_ =
-      std::make_unique<Table>(INIT_SIZE,          /* init_size */
-                              MAX_SIZE,           /* max_size */
-                              nv::merlin::GB(0), /* max_hbm_for_vectors */
-                              0.75,               /* max_load_factor */
-                              128,                /* buckets_max_size */
-                              nullptr,            /* initializer */
-                              true,               /* primary */
-                              1024                /* block_size */
+      std::make_unique<Table>(INIT_SIZE,         /* init_size */
+                              MAX_SIZE,          /* max_size */
+                              nv::merlin::GB(16), /* max_hbm_for_vectors */
+                              0.75,              /* max_load_factor */
+                              128,               /* buckets_max_size */
+                              nullptr,           /* initializer */
+                              true,              /* primary */
+                              1024               /* block_size */
       );
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));          // 8MB
