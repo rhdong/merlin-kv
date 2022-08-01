@@ -136,7 +136,7 @@ int test_main() {
 
   table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
                            d_metas, KEY_NUM, false, stream);
-                           
+
   auto start_insert_or_assign = std::chrono::steady_clock::now();
   table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
                            d_metas, KEY_NUM, false, stream);
