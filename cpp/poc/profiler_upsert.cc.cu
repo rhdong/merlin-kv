@@ -85,8 +85,12 @@ int main() {
   }
   create_continuous_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
-
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
+  cudaDeviceSynchronize();
+  auto start_insert_or_assign = std::chrono::steady_clock::now();
+  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
+  cudaDeviceSynchronize();
+  auto end_insert_or_assign = std::chrono::steady_clock::now();
 
   for (int i = 0; i < BUCKETS_NUM; i++) {
     cudaFree(&(buckets[i].keys));
@@ -94,7 +98,12 @@ int main() {
   cudaFree(buckets);
   cudaFreeHost(h_keys);
   cudaFree(d_keys);
+  std::chrono::duration<double> diff_insert_or_assign =
+      end_insert_or_assign - start_insert_or_assign;
 
+  printf(
+      "[prepare] insert_or_assign=%.2fmsf\n",
+      diff_insert_or_assign.count() * 1000);
   std::cout << "COMPLETED SUCCESSFULLY\n";
 
   return 0;
