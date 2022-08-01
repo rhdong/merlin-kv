@@ -143,18 +143,14 @@ int test_main() {
   auto end_insert_or_assign = std::chrono::steady_clock::now();
 
   cur_load_factor = table_->load_factor();
-
+  std::chrono::duration<double> diff_insert_or_assign =
+      end_insert_or_assign - start_insert_or_assign;
   printf(
       "[prepare] insert_or_assign=%.2fms\n",
       diff_insert_or_assign.count() * 1000,
       );
   cudaStreamDestroy(stream);
 
-
-
-  std::cout << "Capacity = " << table_->capacity()
-            << ", total_size = " << total_size
-            << ", found_num = " << found_num << std::endl;
 
   cudaFreeHost(h_keys);
   cudaFreeHost(h_metas);
