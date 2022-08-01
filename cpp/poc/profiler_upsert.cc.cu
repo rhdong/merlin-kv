@@ -23,7 +23,7 @@ void create_random_keys(K *h_keys, int KEY_NUM, K start = 0) {
   int i = 0;
 
   while (numbers.size() < KEY_NUM) {
-    numbers.insert(distr(eng));
+    numbers.insert(distr(eng) % 0xFFFFFFFF);
   }
   for (const K num : numbers) {
     h_keys[i] = num;
@@ -97,7 +97,6 @@ __global__ void upsert_kernel(const Key *__restrict keys,
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
 
     int key_pos = -1;
-    bool found_or_empty = false;
     size_t key_idx = t / TILE_SIZE;
     Key insert_key = *(keys + key_idx);
     size_t bkt_idx = insert_key & (BUCKETS_NUM - 1);
@@ -115,7 +114,6 @@ __global__ void upsert_kernel(const Key *__restrict keys,
       auto const found_or_empty_vote =
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
-        found_or_empty = true;
         src_lane = __ffs(found_or_empty_vote) - 1;
         key_pos = (start_idx + tile_offset + src_lane) &
                   MAX_BUCKET_SIZE;
