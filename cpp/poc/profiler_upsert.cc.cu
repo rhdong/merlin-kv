@@ -24,6 +24,7 @@ struct Bucket {
   K *keys;
 };
 
+constexpr K EMPTY_KEY = std::numeric_limits<K>::max();
 constexpr int KEY_NUM = 1024 * 1024;
 constexpr int INIT_SIZE = KEY_NUM * 64;
 constexpr int MAX_BUCKET_SIZE = 128;
@@ -51,7 +52,7 @@ __global__ void upsert_kernel(const K *__restrict keys,
     size_t bkt_idx = hashed_key & (BUCKETS_NUM - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
-    Bucket<K> *bucket = buckets + bkt_idx;
+    const Bucket<K> *bucket = buckets + bkt_idx;
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
@@ -82,7 +83,7 @@ int main() {
     cudaMalloc(&(buckets[i].keys), sizeof(K) * MAX_BUCKET_SIZE);
     cudaMemset(&(buckets[i].keys), 0xFF, sizeof(K) * MAX_BUCKET_SIZE);
   }
-  create_continuous_keys(h_keys, KEY_NUM, 0);
+  create_continuous_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
 
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
