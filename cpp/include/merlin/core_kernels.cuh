@@ -789,7 +789,7 @@ __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
 
 /* Lookup with no meta.*/
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
-__global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
+__global__ void lookup_kernel_old(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
                               M *__restrict metas, bool *__restrict found,
                               int *__restrict dst_offset, size_t N) {
@@ -828,6 +828,62 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
       if (found_vote) {
         local_found = true;
         key_pos = tile_offset + __ffs(found_vote) - 1;
+        break;
+      }
+    }
+
+    if (rank == 0) {
+      *(vectors + key_idx) =
+          local_found ? (bucket->vectors + key_pos) : nullptr;
+      if (metas != nullptr && local_found) {
+        *(metas + key_idx) = bucket->metas[key_pos].val;
+      }
+      if (found != nullptr) {
+        *(found + key_idx) = local_found;
+      }
+      if (dst_offset != nullptr) {
+        *(dst_offset + key_idx) = key_idx;
+      }
+    }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+  }
+}
+
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
+__global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
+                              const K *__restrict keys, V **__restrict vectors,
+                              M *__restrict metas, bool *__restrict found,
+                              int *__restrict dst_offset, size_t N) {
+  size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  const size_t buckets_num = table->buckets_num;
+  const size_t bucket_max_size = table->bucket_max_size;
+  for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
+    auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
+    int rank = g.thread_rank();
+
+    int key_idx = t / TILE_SIZE;
+    int key_pos = -1;
+    bool local_found = false;
+
+    K find_key = keys[key_idx];
+    K hashed_key = Murmur3HashDevice(find_key);
+    uint32_t bkt_idx = hashed_key & (table->buckets_num - 1);
+    uint32_t start_idx = hashed_key & (bucket_max_size - 1);
+
+    Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
+    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+
+    size_t tile_offset = 0;
+#pragma unroll
+    for (tile_offset = 0; tile_offset < bucket_max_size;
+         tile_offset += TILE_SIZE) {
+      uint32_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
+      K current_key = *(bucket->keys + key_offset);
+      auto const found_or_empty_vote = g.ballot(find_key == current_key || current_key == EMPTY_KEY));
+      if (found_or_empty_vote) {
+        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
+                  bucket_max_size;
+        local_found = (*(bucket->keys + key_pos) == insert_key);
         break;
       }
     }
