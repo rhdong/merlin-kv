@@ -52,22 +52,22 @@ __global__ void upsert_kernel(const Key *__restrict keys,
     size_t bkt_idx = hashed_key & (BUCKETS_NUM - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
-//    const Bucket<K> *bucket = buckets + bkt_idx;
-//
-//#pragma unroll
-//    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
-//         tile_offset += TILE_SIZE) {
-//      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
-//      Key current_key = *(bucket->keys + key_offset);
-//      auto const found_or_empty_vote =
-//          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
-//      if (found_or_empty_vote) {
-//        found_or_empty = true;
-//        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
-//                  bucket_max_size;
-//        break;
-//      }
-//    }
+    const Bucket<Key> *bucket = buckets + bkt_idx;
+
+#pragma unroll
+    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
+         tile_offset += TILE_SIZE) {
+      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
+      Key current_key = *(bucket->keys + key_offset);
+      auto const found_or_empty_vote =
+          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
+      if (found_or_empty_vote) {
+        found_or_empty = true;
+        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
+                  bucket_max_size;
+        break;
+      }
+    }
   }
 }
 int main() {
