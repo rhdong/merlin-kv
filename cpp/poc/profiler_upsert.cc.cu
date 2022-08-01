@@ -108,7 +108,7 @@ __global__ void upsert_kernel(const Key *__restrict keys,
       if (found_or_empty) {
         key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
         if (*(bucket->keys + key_pos) == EMPTY_KEY) {
-          *(d_sizes + bkt_idx)++;
+          d_sizes[bkt_idx]++;
         }
         bucket->keys[key_pos] = insert_key;
 
