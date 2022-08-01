@@ -58,6 +58,16 @@ constexpr const size_t N = KEY_NUM * TILE_SIZE;
 constexpr const size_t GRID_SIZE = ((N)-1) / BLOCK_SIZE + 1;
 constexpr int BUCKETS_NUM = INIT_SIZE / MAX_BUCKET_SIZE;
 
+__inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const& key) {
+  uint64_t k = key;
+  k ^= k >> 33;
+  k *= UINT64_C(0xff51afd7ed558ccd);
+  k ^= k >> 33;
+  k *= UINT64_C(0xc4ceb9fe1a85ec53);
+  k ^= k >> 33;
+  return k;
+}
+
 template <class Key>
 __global__ void upsert_kernel(const Key *__restrict keys,
                               const Bucket<K> *__restrict buckets, size_t N) {
@@ -72,7 +82,7 @@ __global__ void upsert_kernel(const Key *__restrict keys,
     const size_t bucket_max_size = MAX_BUCKET_SIZE;
     size_t key_idx = t / TILE_SIZE;
     Key insert_key = keys[key_idx];
-    Key hashed_key = insert_key;  // Murmur3HashDevice(insert_key);
+    Key hashed_key = Murmur3HashDevice(insert_key);
     size_t bkt_idx = hashed_key & (BUCKETS_NUM - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
