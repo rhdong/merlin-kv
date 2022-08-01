@@ -854,11 +854,11 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
     bkt_idx = g.shfl(bkt_idx, 0);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
-//
-//    if (rank == 0) {
-//      lock<Mutex>(*(table->locks + bkt_idx));
-//    }
-//    g.sync();
+    //
+    //    if (rank == 0) {
+    //      lock<Mutex>(*(table->locks + bkt_idx));
+    //    }
+    //    g.sync();
 
     size_t tile_offset = 0;
 #pragma unroll
@@ -873,7 +873,7 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
       }
     }
 
-//    g.sync();
+    //    g.sync();
     if (rank == 0) {
       *(vectors + key_idx) =
           local_found ? (bucket->vectors + key_pos) : nullptr;
@@ -886,7 +886,7 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
       if (dst_offset != nullptr) {
         *(dst_offset + key_idx) = key_idx;
       }
-//      unlock<Mutex>(*(table->locks + bkt_idx));
+      //      unlock<Mutex>(*(table->locks + bkt_idx));
     }
   }
 }
