@@ -91,52 +91,55 @@ __global__ void upsert_kernel(const Key *__restrict keys,
                               int *__restrict d_sizes, V **__restrict vectors,
                               int *__restrict src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
+  int rank = g.thread_rank();
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
-    auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
-    int rank = g.thread_rank();
 
     int key_pos = -1;
     bool found_or_empty = false;
-    const size_t bucket_max_size = MAX_BUCKET_SIZE;
     size_t key_idx = t / TILE_SIZE;
-    Key insert_key = keys[key_idx];
+    Key insert_key = *(keys + key_idx);
 //    Key hashed_key = Murmur3HashDevice(insert_key);
     size_t bkt_idx = insert_key & (BUCKETS_NUM - 1);
-    size_t start_idx = insert_key & (bucket_max_size - 1);
+    size_t start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
+    int src_lane;
 
     const Bucket<Key> *bucket = buckets + bkt_idx;
 
 #pragma unroll
-    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
+    for (uint32_t tile_offset = 0; tile_offset < MAX_BUCKET_SIZE;
          tile_offset += TILE_SIZE) {
-      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
+      size_t key_offset = (start_idx + tile_offset + rank) & (MAX_BUCKET_SIZE - 1);
       Key current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         found_or_empty = true;
-        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
-                  bucket_max_size;
+        src_lane = __ffs(found_or_empty_vote) - 1;
+        key_pos = (start_idx + tile_offset + src_lane) &
+                  MAX_BUCKET_SIZE;
+        if(rank == src_lane) {
+          *(bucket->keys + key_pos) = insert_key;
+          *(vectors + key_idx) = (bucket->vectors + key_pos);
+          if (current_key == EMPTY_KEY) {
+            d_sizes[bkt_idx]++;
+          }
+        }
         break;
       }
     }
     if (rank == 0) {
-      if (found_or_empty) {
-        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
-        if (*(bucket->keys + key_pos) == EMPTY_KEY) {
-          d_sizes[bkt_idx]++;
-        }
-        bucket->keys[key_pos] = insert_key;
+      if (key_pos == -1) {
+        key_pos = bucket->min_pos;
+        *(bucket->keys + key_pos) = insert_key;
+        *(vectors + key_idx) = (bucket->vectors + key_pos);
+      }
+      /// Record storage offset. This will be used by write_kernel to map
+      /// the input to the output data.
 
-        /// Record storage offset. This will be used by write_kernel to map
-        /// the input to the output data.
-        if (vectors[key_idx] == nullptr) {
-          vectors[key_idx] = (bucket->vectors + key_pos);
-        }
-        if (src_offset != nullptr) {
-          src_offset[key_idx] = key_idx;
-        }
+      if (src_offset != nullptr) {
+        *(src_offset + key_idx) = key_idx;
       }
     }
   }
