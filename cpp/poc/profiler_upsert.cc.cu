@@ -49,7 +49,6 @@ struct Bucket {
   int min_pos;
 };
 
-constexpr K EMPTY_KEY = std::numeric_limits<K>::max();
 constexpr int KEY_NUM = 1024 * 1024;
 constexpr int INIT_SIZE = KEY_NUM * 64;
 constexpr int MAX_BUCKET_SIZE = 128;
