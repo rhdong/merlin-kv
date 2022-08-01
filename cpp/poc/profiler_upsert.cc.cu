@@ -146,11 +146,11 @@ int main() {
 
   create_continuous_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
-  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
+  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors, N);
   cudaDeviceSynchronize();
 
   auto start_insert_or_assign = std::chrono::steady_clock::now();
-  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, N);
+  upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors, N);
   cudaDeviceSynchronize();
   auto end_insert_or_assign = std::chrono::steady_clock::now();
 
