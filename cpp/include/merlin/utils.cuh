@@ -16,11 +16,16 @@
 
 #pragma once
 
+#include <cooperative_groups.h>
+
 #include <exception>
 #include <string>
 
 #include "cuda_fp16.h"
 #include "cuda_runtime_api.h"
+
+using namespace cooperative_groups;
+namespace cg = cooperative_groups;
 
 __inline__ __device__ uint64_t atomicCAS(uint64_t* address, uint64_t compare,
                                          uint64_t val) {
@@ -352,6 +357,28 @@ __forceinline__ __device__ constexpr bool key_empty(const K* k) {
     }
   }
   return true;
+}
+
+template <typename mutex, uint32_t TILE_SIZE, bool THREAD_SAFE = false>
+__forceinline__ __device__ void lock(
+    const cg::thread_block_tile<TILE_SIZE>& tile, mutex& set_mutex) {
+  if (!THREAD_SAFE) {
+    if (tile.thread_rank() == 0) {
+      set_mutex.acquire();
+    }
+    g.sync();
+  }
+}
+
+template <typename mutex, uint32_t tile_size, bool THREAD_SAFE = false>
+__forceinline__ __device__ void unlock(
+    const cg::thread_block_tile<TILE_SIZE>& tile, mutex& set_mutex) {
+  if (!THREAD_SAFE) {
+    g.sync();
+    if (tile.thread_rank() == 0) {
+      set_mutex.release();
+    }
+  }
 }
 
 }  // namespace merlin

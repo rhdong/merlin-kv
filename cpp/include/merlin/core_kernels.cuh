@@ -43,16 +43,6 @@ __global__ void release_locks(M *__restrict mutex, size_t start, size_t end) {
   }
 }
 
-template <typename mutex>
-__forceinline__ __device__ void lock(mutex &set_mutex) {
-  set_mutex.acquire();
-}
-
-template <typename mutex>
-__forceinline__ __device__ void unlock(mutex &set_mutex) {
-  set_mutex.release();
-}
-
 /* 2GB per slice by default.*/
 constexpr size_t kDefaultBytesPerSlice = (2ul << 30);
 
@@ -497,10 +487,7 @@ __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
-    if (rank == 0) {
-      lock<Mutex>(table->locks[bkt_idx]);
-    }
-    g.sync();
+    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
     size_t tile_offset = 0;
 #pragma unroll
@@ -549,11 +536,7 @@ __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
         src_offset[key_idx] = key_idx;
       }
     }
-
-    g.sync();
-    if (rank == 0) {
-      unlock<Mutex>(table->locks[bkt_idx]);
-    }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 4>
@@ -572,16 +555,13 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     const uint32_t bucket_max_size = table->bucket_max_size;
     size_t key_idx = t / TILE_SIZE;
     K insert_key = keys[key_idx];
-    uint32_t hashed_key = Murmur3HashDevice(insert_key) & 0xFFFFFFFF;
+    K hashed_key = Murmur3HashDevice(insert_key);
     uint32_t bkt_idx = hashed_key & (table->buckets_num - 1);
     uint32_t start_idx = hashed_key & (bucket_max_size - 1);
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
-    if (rank == 0) {
-      lock<Mutex>(table->locks[bkt_idx]);
-    }
-    g.sync();
+    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
@@ -622,11 +602,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
         }
       }
     }
-
-    g.sync();
-    if (rank == 0) {
-      unlock<Mutex>(table->locks[bkt_idx]);
-    }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
 
