@@ -99,19 +99,9 @@ __global__ void upsert_kernel(const Key *__restrict keys,
     int key_pos = -1;
     bool found_or_empty = false;
     size_t key_idx = t / TILE_SIZE;
-    Key insert_key;
-    size_t bkt_idx;
-    size_t start_idx;
-    if(rank == 0) {
-      insert_key = *(keys + key_idx);
-      bkt_idx = insert_key & (BUCKETS_NUM - 1);
-      start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
-    }
-
-    insert_key = g.shfl(insert_key, 0);
-    bkt_idx = g.shfl(bkt_idx, 0);
-    start_idx = g.shfl(start_idx, 0);
-
+    Key insert_key = *(keys + key_idx);
+    size_t bkt_idx = insert_key & (BUCKETS_NUM - 1);
+    size_t start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
 
     int src_lane;
 
@@ -157,6 +147,7 @@ __global__ void upsert_kernel(const Key *__restrict keys,
 int main() {
   K *h_keys;
   K *d_keys;
+  K *d_all_keys;
   int *d_sizes;
   V **vectors;
 
@@ -164,9 +155,11 @@ int main() {
   cudaMalloc(&d_keys, KEY_NUM * sizeof(K));
   Bucket<K> *buckets;
   cudaMallocManaged(&buckets, sizeof(Bucket<K>) * BUCKETS_NUM);
+  cudaMalloc(&(d_all_keys), sizeof(K) * MAX_BUCKET_SIZE * BUCKETS_NUM);
+  cudaMemset(d_all_keys, 0xFF, sizeof(K) * MAX_BUCKET_SIZE* BUCKETS_NUM);
+
   for (int i = 0; i < BUCKETS_NUM; i++) {
-    cudaMalloc(&(buckets[i].keys), sizeof(K) * MAX_BUCKET_SIZE);
-    cudaMemset(buckets[i].keys, 0xFF, sizeof(K) * MAX_BUCKET_SIZE);
+     buckets[i].keys = d_all_keys + i * MAX_BUCKET_SIZE;
   }
   cudaMalloc(&(d_sizes), sizeof(int) * BUCKETS_NUM);
   cudaMemset(d_sizes, 0, sizeof(int) * BUCKETS_NUM);
@@ -194,9 +187,7 @@ int main() {
     exit(-1);
   }
 
-  for (int i = 0; i < BUCKETS_NUM; i++) {
-    cudaFree(buckets[i].keys);
-  }
+  cudaFree(d_all_keys);
   cudaFree(buckets);
   cudaFreeHost(h_keys);
   cudaFree(d_keys);
