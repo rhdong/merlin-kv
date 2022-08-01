@@ -99,10 +99,17 @@ __global__ void upsert_kernel(const Key *__restrict keys,
     int key_pos = -1;
     bool found_or_empty = false;
     size_t key_idx = t / TILE_SIZE;
-    Key insert_key = *(keys + key_idx);
-//    Key hashed_key = Murmur3HashDevice(insert_key);
-    size_t bkt_idx = insert_key & (BUCKETS_NUM - 1);
-    size_t start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
+    if(rank == 0) {
+      Key insert_key = *(keys + key_idx);
+      size_t bkt_idx = insert_key & (BUCKETS_NUM - 1);
+      size_t start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
+    }
+
+    insert_key = g.shfl(insert_key, 0);
+    bkt_idx = g.shfl(bkt_idx, 0);
+    start_idx = g.shfl(start_idx, 0);
+
+
     int src_lane;
 
     const Bucket<Key> *bucket = buckets + bkt_idx;
