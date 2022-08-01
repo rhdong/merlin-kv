@@ -578,10 +578,10 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 
     Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
 
-    //    if (rank == 0) {
-    //      lock<Mutex>(table->locks[bkt_idx]);
-    //    }
-    //    g.sync();
+    if (rank == 0) {
+      lock<Mutex>(table->locks[bkt_idx]);
+    }
+    g.sync();
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
@@ -623,10 +623,10 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
       }
     }
 
-    //    g.sync();
-    //    if (rank == 0) {
-    //      unlock<Mutex>(table->locks[bkt_idx]);
-    //    }
+    g.sync();
+    if (rank == 0) {
+      unlock<Mutex>(table->locks[bkt_idx]);
+    }
   }
 }
 
