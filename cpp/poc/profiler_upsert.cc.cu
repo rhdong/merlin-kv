@@ -23,7 +23,7 @@ void create_random_keys(K *h_keys, int KEY_NUM, K start = 0) {
   int i = 0;
 
   while (numbers.size() < KEY_NUM) {
-    numbers.insert(distr(eng) % 0xFFFFFFFF);
+    numbers.insert(distr(eng));
   }
   for (const K num : numbers) {
     h_keys[i] = num;
@@ -74,6 +74,7 @@ constexpr int TILE_SIZE = 4;
 constexpr const size_t N = KEY_NUM * TILE_SIZE;
 constexpr const size_t GRID_SIZE = ((N)-1) / BLOCK_SIZE + 1;
 constexpr int BUCKETS_NUM = INIT_SIZE / MAX_BUCKET_SIZE;
+constexpr int DIM = 4;
 
 __inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const &key) {
   uint64_t k = key;
@@ -89,13 +90,13 @@ template <class Key>
 __global__ void upsert_kernel(const Key *__restrict keys,
                               const Bucket<K> *__restrict buckets,
                               int *__restrict d_sizes, V **__restrict vectors,
+                              const V *__restrict values,
                               int *__restrict src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
   int rank = g.thread_rank();
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
-
     int key_pos = -1;
     size_t key_idx = t / TILE_SIZE;
     Key insert_key = *(keys + key_idx);
@@ -106,40 +107,45 @@ __global__ void upsert_kernel(const Key *__restrict keys,
 
     const Bucket<Key> *bucket = buckets + bkt_idx;
 
+    if (rank == 0 && src_offset != nullptr) {
+      *(src_offset + key_idx) = key_idx;
+    }
+
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < MAX_BUCKET_SIZE;
          tile_offset += TILE_SIZE) {
-      size_t key_offset = (start_idx + tile_offset + rank) & (MAX_BUCKET_SIZE - 1);
+      size_t key_offset =
+          (start_idx + tile_offset + rank) & (MAX_BUCKET_SIZE - 1);
       Key current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos = (start_idx + tile_offset + src_lane) &
-                  MAX_BUCKET_SIZE;
-        if(rank == src_lane) {
+        key_pos = (start_idx + tile_offset + src_lane) & MAX_BUCKET_SIZE;
+        if (rank == src_lane) {
           *(bucket->keys + key_pos) = insert_key;
-          *(vectors + key_idx) = (bucket->vectors + key_pos);
+          //          *(vectors + key_idx) = (bucket->vectors + key_pos);
           if (current_key == EMPTY_KEY) {
             d_sizes[bkt_idx]++;
           }
         }
-        break;
+        for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
+          *(bucket->vectors + key_pos * DIM + i) =
+              *(values + key_idx * DIM + i);
+        }
+        return;
       }
     }
-    if (rank == 0) {
-      if (key_pos == -1) {
-        key_pos = bucket->min_pos;
-        *(bucket->keys + key_pos) = insert_key;
-        *(vectors + key_idx) = (bucket->vectors + key_pos);
-      }
-      /// Record storage offset. This will be used by write_kernel to map
-      /// the input to the output data.
-
-      if (src_offset != nullptr) {
-        *(src_offset + key_idx) = key_idx;
-      }
+    if (rank == 0 && key_pos == -1) {
+      key_pos = bucket->min_pos;
+      *(bucket->keys + key_pos) = insert_key;
     }
+    key_pos = g.shfl(key_pos, 0);
+    //        *(vectors + key_idx) = (bucket->vectors + key_pos);
+    for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
+      *(bucket->vectors + key_pos * DIM + i) = *(values + key_idx * DIM + i);
+    }
+    return;
   }
 }
 int main() {
@@ -149,15 +155,19 @@ int main() {
   int *d_sizes;
   V **vectors;
 
+  V *values;
+
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));
   cudaMalloc(&d_keys, KEY_NUM * sizeof(K));
   Bucket<K> *buckets;
   cudaMallocManaged(&buckets, sizeof(Bucket<K>) * BUCKETS_NUM);
   cudaMalloc(&(d_all_keys), sizeof(K) * MAX_BUCKET_SIZE * BUCKETS_NUM);
-  cudaMemset(d_all_keys, 0xFF, sizeof(K) * MAX_BUCKET_SIZE* BUCKETS_NUM);
+  cudaMemset(d_all_keys, 0xFF, sizeof(K) * MAX_BUCKET_SIZE * BUCKETS_NUM);
+
+  cudaMalloc(&(values), sizeof(V) * KEY_NUM * DIM);
 
   for (int i = 0; i < BUCKETS_NUM; i++) {
-     buckets[i].keys = d_all_keys + i * MAX_BUCKET_SIZE;
+    buckets[i].keys = d_all_keys + i * MAX_BUCKET_SIZE;
   }
   cudaMalloc(&(d_sizes), sizeof(int) * BUCKETS_NUM);
   cudaMemset(d_sizes, 0, sizeof(int) * BUCKETS_NUM);
@@ -168,13 +178,13 @@ int main() {
   create_random_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors,
-                                              nullptr, N);
+                                              values, nullptr, N);
   cudaDeviceSynchronize();
 
   create_random_keys<K>(h_keys, KEY_NUM, KEY_NUM);
   auto start_insert_or_assign = std::chrono::steady_clock::now();
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, d_sizes, vectors,
-                                              nullptr, N);
+                                              values, nullptr, N);
   cudaDeviceSynchronize();
   auto end_insert_or_assign = std::chrono::steady_clock::now();
 
@@ -186,6 +196,7 @@ int main() {
   }
 
   cudaFree(d_all_keys);
+  cudaFree(values);
   cudaFree(buckets);
   cudaFreeHost(h_keys);
   cudaFree(d_keys);
