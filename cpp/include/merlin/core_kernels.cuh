@@ -538,7 +538,7 @@ __global__ void upsert_kernel_old(const Table<K, V, M, DIM> *__restrict table,
     unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
-template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 4>
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys, V **__restrict vectors,
                               const M *__restrict metas,
@@ -577,30 +577,30 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
         break;
       }
     }
-//    if (rank == 0) {
-//      if (metas[key_idx] >= bucket->min_meta || found_or_empty) {
-//        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
-//        if (key_empty<K>(bucket->keys + key_pos)) {
-//          table->buckets_size[bkt_idx]++;
-//        }
-//        bucket->keys[key_pos] = insert_key;
-//        bucket->metas[key_pos].val = metas[key_idx];
-//
-//        /// Re-locate the smallest meta.
-//        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
-//          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
-//        }
-//
-//        /// Record storage offset. This will be used by write_kernel to map
-//        /// the input to the output data.
-//        if (vectors[key_idx] == nullptr) {
-//          vectors[key_idx] = (bucket->vectors + key_pos);
-//        }
-//        if (src_offset != nullptr) {
-//          src_offset[key_idx] = key_idx;
-//        }
-//      }
-//    }
+    if (rank == 0) {
+      if (metas[key_idx] >= bucket->min_meta || found_or_empty) {
+        key_pos = (key_pos == -1) ? bucket->min_pos : key_pos;
+        if (key_empty<K>(bucket->keys + key_pos)) {
+          table->buckets_size[bkt_idx]++;
+        }
+        bucket->keys[key_pos] = insert_key;
+        bucket->metas[key_pos].val = metas[key_idx];
+
+        /// Re-locate the smallest meta.
+        if (table->buckets_size[bkt_idx] >= bucket_max_size) {
+          refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
+        }
+
+        /// Record storage offset. This will be used by write_kernel to map
+        /// the input to the output data.
+        if (vectors[key_idx] == nullptr) {
+          vectors[key_idx] = (bucket->vectors + key_pos);
+        }
+        if (src_offset != nullptr) {
+          src_offset[key_idx] = key_idx;
+        }
+      }
+    }
     unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
 }
