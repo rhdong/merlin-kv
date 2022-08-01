@@ -34,8 +34,8 @@ constexpr const size_t N = KEY_NUM * TILE_SIZE;
 constexpr const size_t GRID_SIZE = ((N)-1) / BLOCK_SIZE + 1;
 constexpr int BUCKETS_NUM = INIT_SIZE / MAX_BUCKET_SIZE;
 
-template <class K>
-__global__ void upsert_kernel(const K *__restrict keys,
+template <class Key>
+__global__ void upsert_kernel(const Key *__restrict keys,
                               const Bucket<K> *__restrict buckets, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -47,8 +47,8 @@ __global__ void upsert_kernel(const K *__restrict keys,
     bool found_or_empty = false;
     const size_t bucket_max_size = MAX_BUCKET_SIZE;
     size_t key_idx = t / TILE_SIZE;
-    K insert_key = keys[key_idx];
-    K hashed_key = insert_key;  // Murmur3HashDevice(insert_key);
+    Key insert_key = keys[key_idx];
+    Key hashed_key = insert_key;  // Murmur3HashDevice(insert_key);
     size_t bkt_idx = hashed_key & (BUCKETS_NUM - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
@@ -58,7 +58,7 @@ __global__ void upsert_kernel(const K *__restrict keys,
 //    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
 //         tile_offset += TILE_SIZE) {
 //      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
-//      K current_key = *(bucket->keys + key_offset);
+//      Key current_key = *(bucket->keys + key_offset);
 //      auto const found_or_empty_vote =
 //          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
 //      if (found_or_empty_vote) {
