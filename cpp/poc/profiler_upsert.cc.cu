@@ -91,10 +91,10 @@ int main() {
   upsert_kernel<K><<<GRID_SIZE, BLOCK_SIZE>>>(d_keys, buckets, N);
   cudaDeviceSynchronize();
   auto end_insert_or_assign = std::chrono::steady_clock::now();
-  
+
   cudaError err = cudaGetLastError();
   if (cudaSuccess != err) {
-    fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n", file, line,
+    fprintf(stderr, "cudaCheckError() failed  : %s\n",
             cudaGetErrorString(err));
     exit(-1);
   }
