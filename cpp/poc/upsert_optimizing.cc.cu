@@ -8,6 +8,9 @@
 #include <thread>
 #include <unordered_set>
 
+using namespace cooperative_groups;
+namespace cg = cooperative_groups;
+
 typedef float V;
 
 constexpr int DIM = 64;
