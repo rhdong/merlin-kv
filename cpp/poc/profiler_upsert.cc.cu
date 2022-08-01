@@ -11,6 +11,8 @@ namespace cg = cooperative_groups;
 #include <unordered_set>
 
 typedef uint64_t K;
+typedef uint64_t M;
+typedef float V;
 
 template <class K>
 void create_continuous_keys(K *h_keys, int KEY_NUM, K start = 0) {
@@ -19,9 +21,32 @@ void create_continuous_keys(K *h_keys, int KEY_NUM, K start = 0) {
   }
 }
 
+template <class M>
+struct Meta {
+  M val;
+};
+
+constexpr uint64_t EMPTY_KEY = std::numeric_limits<uint64_t>::max();
+constexpr uint64_t MAX_META = std::numeric_limits<uint64_t>::max();
+constexpr uint64_t EMPTY_META = std::numeric_limits<uint64_t>::min();
+
 template <class K>
 struct Bucket {
-  K *keys;
+  K *keys;         // HBM
+  Meta<M> *metas;  // HBM
+  V *cache;        // HBM(optional)
+  V *vectors;      // Pinned memory or HBM
+
+  /* For upsert_kernel without user specified metas
+     recording the current meta, the cur_meta will
+     increment by 1 when a new inserting happens. */
+  M cur_meta;
+
+  /* min_meta and min_pos is for or upsert_kernel
+     with user specified meta. They record the minimum
+     meta and its pos in the bucket. */
+  M min_meta;
+  int min_pos;
 };
 
 constexpr K EMPTY_KEY = std::numeric_limits<K>::max();
