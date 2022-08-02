@@ -466,12 +466,13 @@ __global__ void upsert_kernel_with_io(
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int key_pos = -1;
-    const size_t bucket_max_size = 128;  // table->bucket_max_size;
+    const size_t bucket_max_size = table->bucket_max_size;
+    const size_t buckets_num = table->buckets_num;
 
     size_t key_idx = t / TILE_SIZE;
     K insert_key = *(keys + key_idx);
     K hashed_key = Murmur3HashDevice(insert_key);
-    size_t bkt_idx = hashed_key & (524288 - 1);
+    size_t bkt_idx = hashed_key & (buckets_num - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
     int src_lane;
@@ -495,7 +496,6 @@ __global__ void upsert_kernel_with_io(
         key_pos = (start_idx + tile_offset + src_lane) & bucket_max_size;
         if (rank == src_lane) {
           *(bucket->keys + key_pos) = insert_key;
-//          atomicExch(bucket->keys + key_pos, insert_key);
           if (current_key == EMPTY_KEY) {
             sizes[bkt_idx]++;
           }
