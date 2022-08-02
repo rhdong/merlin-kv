@@ -458,7 +458,7 @@ __forceinline__ __device__ void refresh_bucket_meta(
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel_with_io(
     const Table<K, V, M, DIM> *__restrict table, const K *__restrict keys,
-    V *__restrict values, const M *__restrict metas,
+    const V *__restrict values, const M *__restrict metas,
     const Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict d_sizes,
     size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
