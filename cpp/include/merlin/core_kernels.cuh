@@ -1018,6 +1018,7 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
        t += blockDim.x * gridDim.x) {
     int key_idx = t / TILE_SIZE;
     int key_pos = -1;
+    int empty_pos = -1;
     bool local_found = false;
 
     K find_key = keys[key_idx];
@@ -1049,6 +1050,7 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
           if (local_found) {
             atomicAdd(count, 1);
             *(buckets->keys + key_pos) = EMPTY_KEY;
+            empty_pos = key_pos;
             for (int i = 1; i < bucket_max_size; i++) {
               key_idx = (key_pos + i) & bucket_max_size;
               find_key = keys[key_idx];
@@ -1058,15 +1060,15 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
               hashed_key = Murmur3HashDevice(find_key);
               global_idx = hashed_key & (buckets_num * bucket_max_size - 1);
               start_idx = global_idx % bucket_max_size;
-              if (key_idx < start_idx || start_idx < key_pos) {
-                *(buckets->keys + key_pos) = *(buckets->keys + key_idx);
-                buckets->metas[key_pos].val = buckets->metas[key_idx].val;
-                for (int j = 0; i < DIM:; j++) {
-                  buckets->vectors[key_pos].value[j] =
+              if (key_idx < start_idx || start_idx < empty_pos) {
+                *(buckets->keys + empty_pos) = *(buckets->keys + key_idx);
+                buckets->metas[empty_pos].val = buckets->metas[key_idx].val;
+                for (int j = 0; j < DIM; j++) {
+                  buckets->vectors[empty_pos].value[j] =
                       buckets->vectors[key_idx].value[j];
                 }
                 *(buckets->keys + key_idx) = EMPTY_KEY;
-                key_pos = key_idx;
+                empty_pos = key_idx;
               }
             }
           }
