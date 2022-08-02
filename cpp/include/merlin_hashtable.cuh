@@ -153,9 +153,9 @@ class HashTable {
       return;
     }
 
-    if (!reach_max_size_ && load_factor() > max_load_factor_) {
-      reserve(capacity() * 2);
-    }
+//    if (!reach_max_size_ && load_factor() > max_load_factor_) {
+//      reserve(capacity() * 2);
+//    }
 
     if (is_pure_hbm_mode()) {
       const size_t block_size = 128;
