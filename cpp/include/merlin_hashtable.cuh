@@ -157,12 +157,12 @@ class HashTable {
       reserve(capacity() * 2);
     }
 
-    Vector **d_dst;
+    Vector **d_dst = nullptr;
     int *d_src_offset = nullptr;
-    CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector *), stream));
-    CUDA_CHECK(cudaMemsetAsync(d_dst, 0, len * sizeof(Vector *), stream));
 
     if (!is_pure_hbm_mode()) {
+      CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector *), stream));
+      CUDA_CHECK(cudaMemsetAsync(d_dst, 0, len * sizeof(Vector *), stream));
       CUDA_CHECK(cudaMallocAsync(&d_src_offset, len * sizeof(int), stream));
       CUDA_CHECK(cudaMemsetAsync(d_src_offset, 0, len * sizeof(int), stream));
     }
@@ -177,9 +177,10 @@ class HashTable {
             <<<grid_size, block_size, 0, stream>>>(table_, keys, d_dst,
                                                    d_src_offset, N);
       } else {
-        upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
-            <<<grid_size, block_size, 0, stream>>>(
-                table_, keys, d_dst, metas, table_->buckets, d_src_offset, N);
+        upsert_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
+            <<<grid_size, block_size, 0, stream>>>(table_, keys, vectors, metas,
+                                                   table_->buckets,
+                                                   table_->sizes, N);
       }
     }
 
@@ -203,14 +204,16 @@ class HashTable {
     }
 
     // Copy provided data to the bucket.
-    {
+    if (!is_pure_hbm_mode()) {
       const size_t N = len * DIM;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
       write_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
           reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset, N);
     }
 
-    CUDA_CHECK(cudaFreeAsync(d_dst, stream));
+    if (d_dst != nullptr) {
+      CUDA_CHECK(cudaFreeAsync(d_dst, stream));
+    }
     if (d_src_offset != nullptr) {
       CUDA_CHECK(cudaFreeAsync(d_src_offset, stream));
     }
