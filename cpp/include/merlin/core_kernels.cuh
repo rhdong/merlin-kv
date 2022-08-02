@@ -478,9 +478,9 @@ __global__ void upsert_kernel_with_io(
 
     Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
 
-    if (rank == 0 && src_offset != nullptr) {
-      *(src_offset + key_idx) = key_idx;
-    }
+//    if (rank == 0 && src_offset != nullptr) {
+//      *(src_offset + key_idx) = key_idx;
+//    }
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
