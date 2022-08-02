@@ -153,9 +153,9 @@ class HashTable {
       return;
     }
 
-    if (!reach_max_size_ && load_factor() > max_load_factor_) {
-      reserve(capacity() * 2);
-    }
+//    if (!reach_max_size_ && load_factor() > max_load_factor_) {
+//      reserve(capacity() * 2);
+//    }
 
     Vector **d_dst = nullptr;
     int *d_src_offset = nullptr;
