@@ -1003,7 +1003,7 @@ __global__ void clear_kernel(Table<K, V, M, DIM> *__restrict table, size_t N) {
 }
 
 /* Remove specified keys. */
-template <class K, class V, class M, size_t DIM>
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
                               const K *__restrict keys,
                               size_t *__restrict count,
@@ -1047,6 +1047,7 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
         if (src_lane == rank) {
           local_found = (current_key == find_key);
           if (local_found) {
+            atomicAdd(count, 1);
             *(buckets->keys + key_pos) = EMPTY_KEY;
             for (int i = 1; i < bucket_max_size; i++) {
               key_idx = (key_pos + i) & bucket_max_size;

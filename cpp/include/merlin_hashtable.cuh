@@ -555,15 +555,17 @@ class HashTable {
    * @return Number of elements removed
    */
   size_t erase(const Key *keys, size_type len, cudaStream_t stream = 0) {
-    const size_t N = len * table_->bucket_max_size;
-    const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
+    const size_t block_size = 128;
+    const size_t N = len * TILE_SIZE;
+    const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
     size_t count = 0;
     size_t *d_count;
     CUDA_CHECK(cudaMallocAsync(&d_count, sizeof(size_t), stream));
     CUDA_CHECK(cudaMemsetAsync(d_count, 0, sizeof(size_t), stream));
 
-    remove_kernel<Key, Vector, M, DIM>
-        <<<grid_size, block_size_, 0, stream>>>(table_, keys, d_count, N);
+    remove_kernel<Key, Vector, M, DIM><<<grid_size, block_size, 0, stream>>>(
+        table_, keys, d_count, table_->buckets, table_->buckets_size,
+        table_->bucket_max_size, table_->buckets_num, N);
 
     CUDA_CHECK(cudaMemcpyAsync(&count, d_count, sizeof(size_t),
                                cudaMemcpyDeviceToHost, stream));
