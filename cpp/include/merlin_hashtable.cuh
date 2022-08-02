@@ -345,149 +345,75 @@ class HashTable {
    */
   void find(const Key *keys, V *vectors, bool *found, size_t len,
             const V *default_vectors, bool full_size_default,
-            cudaStream_t stream = 0) const {
+            M *metas = nullptr, cudaStream_t stream = 0) const {
     if (len == 0) {
       return;
     }
 
-    Vector **src;
-    int *dst_offset = nullptr;
-    CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
-    CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
     CUDA_CHECK(cudaMemsetAsync(found, 0, len * sizeof(bool), stream));
-    if (!is_pure_hbm_mode()) {
+    if (is_pure_hbm_mode()) {
+      const size_t block_size = 128;
+      const size_t N = len * TILE_SIZE;
+      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
+
+      lookup_kernel_with_io<Key, Vector, M, DIM>
+          <<<grid_size, block_size, 0, stream>>>(
+              table_, keys, reinterpret_cast<Vector *>(vectors), metas, found,
+              table_->buckets, table_->buckets_size, table_->bucket_max_size,
+              table_->buckets_num,
+              reinterpret_cast<const Vector *>(default_vectors),
+              full_size_default, N);
+    } else {
+      Vector **src;
+      int *dst_offset = nullptr;
+      CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
+      CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
       CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
       CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
-    }
 
-    // Determine bucket locations for reading.
-    {
-      const size_t block_size = 128;
-      const size_t N = len * TILE_SIZE;
-      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
+      // Determine bucket locations for reading.
+      {
+        const size_t block_size = 128;
+        const size_t N = len * TILE_SIZE;
+        const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
 
-      lookup_kernel<Key, Vector, M, DIM><<<grid_size, block_size, 0, stream>>>(
-          table_, keys, src, nullptr, found, dst_offset, N);
-      CUDA_CHECK(cudaStreamSynchronize(stream));
-    }
+        lookup_kernel<Key, Vector, M, DIM>
+            <<<grid_size, block_size, 0, stream>>>(
+                table_, keys, reinterpret_cast<const Vector **>(src), metas,
+                found, table_->buckets, table_->buckets_size,
+                table_->bucket_max_size, table_->buckets_num, dst_offset, N);
+      }
 
-    if (!is_pure_hbm_mode()) {
-      static_assert(
-          sizeof(V *) == sizeof(uint64_t),
-          "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
+      {
+        static_assert(
+            sizeof(V *) == sizeof(uint64_t),
+            "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
 
-      const size_t N = len;
-      thrust::device_ptr<uint64_t> src_ptr(reinterpret_cast<uint64_t *>(src));
-      thrust::device_ptr<int> dst_offset_ptr(dst_offset);
+        const size_t N = len;
+        thrust::device_ptr<uint64_t> src_ptr(reinterpret_cast<uint64_t *>(src));
+        thrust::device_ptr<int> dst_offset_ptr(dst_offset);
 
 #if THRUST_VERSION >= 101600
-      auto policy = thrust::cuda::par_nosync.on(stream);
+        auto policy = thrust::cuda::par_nosync.on(stream);
 #else
-      auto policy = thrust::cuda::par.on(stream);
+        auto policy = thrust::cuda::par.on(stream);
 #endif
-      thrust::sort_by_key(policy, src_ptr, src_ptr + N, dst_offset_ptr,
-                          thrust::less<uint64_t>());
-    }
+        thrust::sort_by_key(policy, src_ptr, src_ptr + N, dst_offset_ptr,
+                            thrust::less<uint64_t>());
+      }
 
-    // Copy data from bucket to the pointer to vectors.
-    {
-      const size_t N = len * DIM;
-      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
-      read_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-          src, reinterpret_cast<Vector *>(vectors), found,
-          reinterpret_cast<const Vector *>(default_vectors), dst_offset, N,
-          full_size_default);
-      CUDA_CHECK(cudaStreamSynchronize(stream));
-    }
+      {
+        const size_t N = len * DIM;
+        const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
+        read_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
+            src, reinterpret_cast<Vector *>(vectors), found,
+            reinterpret_cast<const Vector *>(default_vectors), dst_offset, N,
+            full_size_default);
+      }
 
-    CUDA_CHECK(cudaFreeAsync(src, stream));
-    if (!is_pure_hbm_mode()) {
+      CUDA_CHECK(cudaFreeAsync(src, stream));
       CUDA_CHECK(cudaFreeAsync(dst_offset, stream));
     }
-    CUDA_CHECK(cudaStreamSynchronize(stream));
-    CudaCheckError();
-  }
-
-  /**
-   * @brief Searches the table for the specified keys.
-   *
-   * @note When a key is missing, a default value in @p default_vectors will
-   * returned. Specially, if @p full_size_default is true, @p default_vectors
-   * will be treated as a V array with @p len * DIM, at this situation,
-   * each keys will have a different default value, or if
-   * @p full_size_default is false, the @p default_vectors only contains one
-   * default vector and each keys will share it when missed.
-   *
-   * @param keys The keys to be searched on GPU accessible memory.
-   * @param vectors The vectors to be searched on GPU accessible memory.
-   * @param metas The metas to be searched on GPU accessible memory.
-   * @param found The status indicates if the keys are found on GPU accessible
-   * memory.
-   * @param len Number of Key-Value-Meta tuples to be searched.
-   * @param default_vectors The default vectors for each keys on GPU accessible
-   * memory. If the keys are missing, the vectors in it will be returned.
-   * @param full_size_default true if the default_vectors contains the same size
-   * default vectors with @p keys. duplicate keys. If false, the caller should
-   * guarantee the @p keys has no duplicated keys, and the performance will be
-   * better.
-   * @param stream The CUDA stream used to execute the operation.
-   */
-  void find(const Key *keys, V *vectors, M *metas, bool *found, size_type len,
-            const V *default_vectors, bool full_size_default,
-            cudaStream_t stream = 0) const {
-    if (len == 0) {
-      return;
-    }
-
-    Vector **src;
-    int *dst_offset;
-    CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
-    CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
-    CUDA_CHECK(cudaMemsetAsync(metas, 0, len * sizeof(M), stream));
-    CUDA_CHECK(cudaMemsetAsync(found, 0, len * sizeof(bool), stream));
-    CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
-    CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
-
-    // Determine bucket locations for reading.
-    {
-      const size_t block_size = 128;
-      const size_t N = len * TILE_SIZE;
-      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
-      lookup_kernel<Key, Vector, M, DIM><<<grid_size, block_size, 0, stream>>>(
-          table_, keys, src, metas, found, dst_offset, N);
-      CudaCheckError();
-    }
-
-    {
-      static_assert(
-          sizeof(V *) == sizeof(uint64_t),
-          "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
-
-      const size_t N = len;
-      thrust::device_ptr<uint64_t> src_ptr(reinterpret_cast<uint64_t *>(src));
-      thrust::device_ptr<int> dst_offset_ptr(dst_offset);
-
-#if THRUST_VERSION >= 101600
-      auto policy = thrust::cuda::par_nosync.on(stream);
-#else
-      auto policy = thrust::cuda::par.on(stream);
-#endif
-      thrust::sort_by_key(policy, src_ptr, src_ptr + N, dst_offset_ptr,
-                          thrust::less<uint64_t>());
-    }
-
-    // Copy data from bucket to the pointer to vectors.
-    {
-      const size_t N = len * DIM;
-      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
-      read_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-          src, reinterpret_cast<Vector *>(vectors), found,
-          reinterpret_cast<const Vector *>(default_vectors), dst_offset, N,
-          full_size_default);
-    }
-
-    CUDA_CHECK(cudaFreeAsync(src, stream));
-    CUDA_CHECK(cudaFreeAsync(dst_offset, stream));
 
     CUDA_CHECK(cudaStreamSynchronize(stream));
     CudaCheckError();
