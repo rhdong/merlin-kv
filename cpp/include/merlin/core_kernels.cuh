@@ -476,6 +476,7 @@ __global__ void upsert_kernel_with_io(
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int key_pos = -1;
+    int local_size = 0;
     unsigned found_or_empty_vote = 0;
 
     size_t key_idx = t / TILE_SIZE;
@@ -484,7 +485,6 @@ __global__ void upsert_kernel_with_io(
     size_t global_idx = hashed_key & (buckets_num * bucket_max_size - 1);
     size_t bkt_idx = global_idx / bucket_max_size;
     size_t start_idx = global_idx % bucket_max_size;
-    int local_size = buckets_size[bkt_idx];
 
     int src_lane = -1;
 
@@ -502,6 +502,7 @@ __global__ void upsert_kernel_with_io(
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
         key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+        local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
           bucket->metas[key_pos].val = metas[key_idx];
