@@ -67,7 +67,7 @@ struct Vector {
  *  - Support dynamic rehashing
  *  - Support SSD/NVMe device as part of storage
  */
-template <class Key, class V, class M, size_t DIM, unsigned int TILE_SIZE = 8>
+template <class Key, class V, class M, size_t DIM, unsigned int TILE_SIZE = 4>
 class HashTable {
  public:
   using key_type = Key;
@@ -153,9 +153,9 @@ class HashTable {
       return;
     }
 
-//    if (!reach_max_size_ && load_factor() > max_load_factor_) {
-//      reserve(capacity() * 2);
-//    }
+    if (!reach_max_size_ && load_factor() > max_load_factor_) {
+      reserve(capacity() * 2);
+    }
 
     Vector **d_dst = nullptr;
     int *d_src_offset = nullptr;
