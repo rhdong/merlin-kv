@@ -478,9 +478,9 @@ __global__ void upsert_kernel_with_io(
 
     Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
 
-//    if (rank == 0 && src_offset != nullptr) {
-//      *(src_offset + key_idx) = key_idx;
-//    }
+    //    if (rank == 0 && src_offset != nullptr) {
+    //      *(src_offset + key_idx) = key_idx;
+    //    }
 
 #pragma unroll
     for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
@@ -500,8 +500,7 @@ __global__ void upsert_kernel_with_io(
           }
         }
         for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-          *(bucket->vectors + key_pos * DIM + i) =
-              *(values + key_idx * DIM + i);
+          bucket->vectors[key_pos].values[i] = values[key_idx].values[i];
         }
         return;
       }
@@ -512,7 +511,7 @@ __global__ void upsert_kernel_with_io(
     }
     key_pos = g.shfl(key_pos, 0);
     for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-      *(bucket->vectors + key_pos * DIM + i) = *(values + key_idx * DIM + i);
+      bucket->vectors[key_pos].values[i] = values[key_idx].values[i];
     }
     return;
   }
