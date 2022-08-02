@@ -284,7 +284,8 @@ class HashTable {
       const size_t N = len * table_->tile_size;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
       accum_kernel<Key, Vector, M, DIM><<<grid_size, block_size, 0, stream>>>(
-          table_, keys, dst, exists, src_offset, found, N);
+          table_, keys, dst, exists, table_->buckets, table_->buckets_size,
+          table_->bucket_max_size, table_->buckets_num, src_offset, found, N);
     }
 
     if (!is_pure_hbm_mode()) {
