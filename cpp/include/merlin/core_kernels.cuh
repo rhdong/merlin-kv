@@ -500,7 +500,7 @@ __global__ void upsert_kernel_with_io(
           }
         }
         for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-          bucket->vectors[key_pos].values[i] = values[key_idx].values[i];
+          bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
         }
         return;
       }
@@ -511,7 +511,7 @@ __global__ void upsert_kernel_with_io(
     }
     key_pos = g.shfl(key_pos, 0);
     for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-      bucket->vectors[key_pos].values[i] = values[key_idx].values[i];
+      bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
     }
     return;
   }
