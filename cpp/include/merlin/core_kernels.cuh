@@ -473,6 +473,7 @@ __global__ void upsert_kernel_with_io(
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int key_pos = -1;
+    int local_size = 0;
 
     size_t key_idx = t / TILE_SIZE;
     K insert_key = *(keys + key_idx);
@@ -502,11 +503,18 @@ __global__ void upsert_kernel_with_io(
           src_lane = __ffs(found_or_empty_vote) - 1;
           key_pos =
               (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+          local_size = buckets_size[bkt_idx];
           if (rank == src_lane) {
             bucket->keys[key_pos] = insert_key;
             if (current_key == EMPTY_KEY) {
               buckets_size[bkt_idx]++;
+              local_size++;
             }
+          }
+          g.shfl(local_size, src_lane);
+          if (local_size >= bucket_max_size) {
+            refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
+                                                         bucket_max_size);
           }
           for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
             bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
@@ -541,6 +549,7 @@ __global__ void upsert_kernel_with_io(
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int key_pos = -1;
+    int local_size = 0;
 
     size_t key_idx = t / TILE_SIZE;
     K insert_key = *(keys + key_idx);
@@ -570,14 +579,16 @@ __global__ void upsert_kernel_with_io(
           src_lane = __ffs(found_or_empty_vote) - 1;
           key_pos =
               (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+          local_size = buckets_size[bkt_idx];
           if (rank == src_lane) {
             bucket->keys[key_pos] = insert_key;
             if (current_key == EMPTY_KEY) {
               buckets_size[bkt_idx]++;
-              g.sync();
+              local_size++;
             }
           }
-          if (buckets_size[bkt_idx] >= bucket_max_size) {
+          g.shfl(local_size, src_lane);
+          if (local_size >= bucket_max_size) {
             refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
                                                          bucket_max_size);
           }
