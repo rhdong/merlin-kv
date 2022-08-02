@@ -71,9 +71,9 @@ struct ValueArray {
 constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024UL;
 constexpr uint64_t MAX_SIZE = INIT_SIZE;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
-constexpr uint64_t TEST_TIMES = 1;
+constexpr uint64_t TEST_TIMES = 0;
 constexpr uint64_t DIM = 4;
-constexpr float target_load_factor = 0.00;
+constexpr float target_load_factor = 0.99;
 
 template <class K, class M>
 __forceinline__ __device__ bool erase_if_pred(const K &key, const M &meta) {
