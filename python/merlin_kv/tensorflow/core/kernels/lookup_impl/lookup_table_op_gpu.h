@@ -121,16 +121,17 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
   void get(const K* d_keys, ValueType<V>* d_vals, bool* d_status, size_t len,
            const ValueType<V>* d_def_val, bool is_full_size_default,
            cudaStream_t stream) const override {
+
     if (is_full_size_default) {
       CUDA_CHECK(cudaMemcpy((void*)d_vals, (void*)d_def_val,
-                            sizeof(ValueType<V>) * len, cudaMemcpyDefault));
+                            sizeof(ValueArray<V, DIM>) * len, cudaMemcpyDefault));
 
     } else {
       const size_t N = len;
-      thrust::device_ptr<ValueType<V>> d_vals_ptr(
-          reinterpret_cast<ValueType<V>*>(d_vals));
-      thrust::device_ptr<const ValueType<V>> d_def_val_ptr(
-          reinterpret_cast<const ValueType<V>*>(d_def_val));
+      thrust::device_ptr<ValueArray<V, DIM>> d_vals_ptr(
+          reinterpret_cast<ValueArray<V, DIM>*>(d_vals));
+      thrust::device_ptr<const ValueArray<V, DIM>> d_def_val_ptr(
+          reinterpret_cast<const ValueArray<V, DIM>*>(d_def_val));
 
 #if THRUST_VERSION >= 101600
       auto policy = thrust::cuda::par_nosync.on(stream);
@@ -148,14 +149,14 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
            cudaStream_t stream) const override {
     if (is_full_size_default) {
       CUDA_CHECK(cudaMemcpy((void*)d_vals, (void*)d_def_val,
-                            sizeof(ValueType<V>) * len, cudaMemcpyDefault));
+                            sizeof(ValueArray<V, DIM>) * len, cudaMemcpyDefault));
 
     } else {
       const size_t N = len;
-      thrust::device_ptr<ValueType<V>> d_vals_ptr(
-          reinterpret_cast<ValueType<V>*>(d_vals));
-      thrust::device_ptr<const ValueType<V>> d_def_val_ptr(
-          reinterpret_cast<const ValueType<V>*>(d_def_val));
+      thrust::device_ptr<ValueArray<V, DIM>> d_vals_ptr(
+          reinterpret_cast<ValueArray<V, DIM>*>(d_vals));
+      thrust::device_ptr<const ValueArray<V, DIM>> d_def_val_ptr(
+          reinterpret_cast<const ValueArray<V, DIM>*>(d_def_val));
 
 #if THRUST_VERSION >= 101600
       auto policy = thrust::cuda::par_nosync.on(stream);
