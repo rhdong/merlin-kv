@@ -180,7 +180,8 @@ class HashTable {
         upsert_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
             <<<grid_size, block_size, 0, stream>>>(
                 table_, keys, reinterpret_cast<const Vector *>(vectors), metas,
-                table_->buckets, table_->buckets_size, N);
+                table_->buckets, table_->buckets_size, table_->bucket_max_size,
+                table_->buckets_num, N);
       }
     }
 
