@@ -118,15 +118,15 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
            const ValueType<V>* d_def_val, bool is_full_size_default,
            cudaStream_t stream) const override {
     table_->find(d_keys, (V*)d_vals, d_status, len, (const V*)d_def_val,
-                 is_full_size_default, stream);
+                 is_full_size_default, nullptr, stream);
   }
 
   void get(const K* d_keys, ValueType<V>* d_vals, M* d_metas, bool* d_status,
            size_t len, const ValueType<V>* d_def_val, bool is_full_size_default,
            cudaStream_t stream) const override {
     cudaMemset(d_vals, 0, len * sizeof(V) * DIM);
-    table_->find(d_keys, (V*)d_vals, d_metas, d_status, len,
-                 (const V*)d_def_val, is_full_size_default, stream);
+    table_->find(d_keys, (V*)d_vals, d_status, len, (const V*)d_def_val,
+                 is_full_size_default, d_metas, stream);
   }
 
   size_t get_size(cudaStream_t stream) const override {

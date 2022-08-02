@@ -98,7 +98,7 @@ int test_main() {
   std::unique_ptr<Table> table_ =
       std::make_unique<Table>(INIT_SIZE,          /* init_size */
                               MAX_SIZE,           /* max_size */
-                              nv::merlin::GB(0), /* max_hbm_for_vectors */
+                              nv::merlin::GB(16), /* max_hbm_for_vectors */
                               0.75,               /* max_load_factor */
                               128,                /* buckets_max_size */
                               nullptr,            /* initializer */
@@ -158,7 +158,7 @@ int test_main() {
 
     auto start_find = std::chrono::steady_clock::now();
     table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-                 reinterpret_cast<float *>(d_def_val), true, nullptr, stream);
+                 nullptr, stream);
     auto end_find = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff_find = end_find - start_find;
 
@@ -196,7 +196,7 @@ int test_main() {
 
     auto start_find = std::chrono::steady_clock::now();
     table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-                 reinterpret_cast<float *>(d_def_val), true, nullptr, stream);
+                 nullptr, stream);
     auto end_find = std::chrono::steady_clock::now();
 
     auto start_accum = std::chrono::steady_clock::now();

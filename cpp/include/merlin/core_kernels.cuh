@@ -375,9 +375,8 @@ __global__ void write_with_accum_kernel(const V *__restrict delta,
 */
 template <class K, class V, class M, size_t DIM>
 __global__ void read_kernel(const V *const *__restrict src, V *__restrict dst,
-                            const bool *mask, const V *__restrict default_val,
-                            const int *__restrict dst_offset, size_t N,
-                            bool full_size_default) {
+                            const bool *mask, const int *__restrict dst_offset,
+                            size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
@@ -385,14 +384,10 @@ __global__ void read_kernel(const V *const *__restrict src, V *__restrict dst,
     int dim_index = t % DIM;
     int real_dst_offset =
         dst_offset != nullptr ? dst_offset[vec_index] : vec_index;
-    int default_index = full_size_default ? real_dst_offset : 0;
 
     /// Copy selected values and fill in default value for all others.
     if (mask[real_dst_offset] && src[vec_index] != nullptr) {
       dst[real_dst_offset].value[dim_index] = src[vec_index]->value[dim_index];
-    } else {
-      dst[real_dst_offset].value[dim_index] =
-          default_val[default_index].value[dim_index];
     }
   }
 }
@@ -875,8 +870,7 @@ __global__ void lookup_kernel_with_io(
     const Table<K, V, M, DIM> *__restrict table, const K *__restrict keys,
     V *__restrict values, M *__restrict metas, bool *__restrict found,
     Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict buckets_size,
-    const size_t bucket_max_size, const size_t buckets_num,
-    const V *default_vectors, bool full_size_default, size_t N) {
+    const size_t bucket_max_size, const size_t buckets_num, size_t N) {
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
   int rank = g.thread_rank();
 
@@ -928,10 +922,8 @@ __global__ void lookup_kernel_with_io(
     }
 
     if (local_found) {
-      copy_vector<V, DIM, TILE_SIZE>(g, bucket->vectors + key_pos, values + key_idx);
-    } else {
-      int default_offset = full_size_default ? key_idx : 0;
-      copy_vector<V, DIM, TILE_SIZE>(g, default_vectors + default_offset, values + key_idx);
+      copy_vector<V, DIM, TILE_SIZE>(g, bucket->vectors + key_pos,
+                                     values + key_idx);
     }
     unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }

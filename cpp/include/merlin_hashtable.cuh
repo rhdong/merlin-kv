@@ -344,7 +344,6 @@ class HashTable {
    * @param stream The CUDA stream used to execute the operation.
    */
   void find(const Key *keys, V *vectors, bool *found, size_t len,
-            const V *default_vectors, bool full_size_default,
             M *metas = nullptr, cudaStream_t stream = 0) const {
     if (len == 0) {
       return;
@@ -360,9 +359,7 @@ class HashTable {
           <<<grid_size, block_size, 0, stream>>>(
               table_, keys, reinterpret_cast<Vector *>(vectors), metas, found,
               table_->buckets, table_->buckets_size, table_->bucket_max_size,
-              table_->buckets_num,
-              reinterpret_cast<const Vector *>(default_vectors),
-              full_size_default, N);
+              table_->buckets_num, N);
     } else {
       Vector **src;
       int *dst_offset = nullptr;
@@ -379,9 +376,9 @@ class HashTable {
 
         lookup_kernel<Key, Vector, M, DIM>
             <<<grid_size, block_size, 0, stream>>>(
-                table_, keys, reinterpret_cast<Vector **>(src), metas,
-                found, table_->buckets, table_->buckets_size,
-                table_->bucket_max_size, table_->buckets_num, dst_offset, N);
+                table_, keys, reinterpret_cast<Vector **>(src), metas, found,
+                table_->buckets, table_->buckets_size, table_->bucket_max_size,
+                table_->buckets_num, dst_offset, N);
       }
 
       {
@@ -406,9 +403,7 @@ class HashTable {
         const size_t N = len * DIM;
         const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
         read_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-            src, reinterpret_cast<Vector *>(vectors), found,
-            reinterpret_cast<const Vector *>(default_vectors), dst_offset, N,
-            full_size_default);
+            src, reinterpret_cast<Vector *>(vectors), found, dst_offset, N);
       }
 
       CUDA_CHECK(cudaFreeAsync(src, stream));
