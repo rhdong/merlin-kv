@@ -170,7 +170,6 @@ int test_main() {
         diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
         cur_load_factor);
     start += KEY_NUM;
-    if (start > 2 * KEY_NUM) break;
   }
   uint64_t total_size = 0;
   for (int i = 0; i < TEST_TIMES; i++) {
