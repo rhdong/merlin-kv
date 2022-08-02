@@ -992,7 +992,7 @@ __global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
 
       /// Re-locate the smallest meta.
       if (table->buckets_size[bkt_idx] >= bucket_max_size) {
-        refresh_bucket_meta<K, V, M, DIM>(bucket, bucket_max_size);
+        refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
       }
 
       /// Record storage offset. This will be used by write_kernel to map
