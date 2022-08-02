@@ -930,7 +930,7 @@ __global__ void lookup_kernel_with_io(
     if (local_found) {
       copy_vector<V, DIM, TILE_SIZE>(g, bucket->vectors + key_pos, values + key_idx);
     } else {
-      int default_offset = full_size_default ? key_pos : 0;
+      int default_offset = full_size_default ? key_idx : 0;
       copy_vector<V, DIM, TILE_SIZE>(g, default_vectors + default_offset, values + key_idx);
     }
     unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
