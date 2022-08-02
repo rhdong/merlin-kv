@@ -494,7 +494,8 @@ __global__ void upsert_kernel_with_io(
         src_lane = __ffs(found_or_empty_vote) - 1;
         key_pos = (start_idx + tile_offset + src_lane) & bucket_max_size;
         if (rank == src_lane) {
-          *(bucket->keys + key_pos) = insert_key;
+//          *(bucket->keys + key_pos) = insert_key;
+          atomicExch(bucket->keys + key_pos, insert_key);
           if (current_key == EMPTY_KEY) {
             sizes[bkt_idx]++;
           }
