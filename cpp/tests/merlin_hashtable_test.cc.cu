@@ -158,7 +158,7 @@ int test_main() {
 
     auto start_find = std::chrono::steady_clock::now();
     table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-                 reinterpret_cast<float *>(d_def_val), true, stream);
+                 reinterpret_cast<float *>(d_def_val), true, nullptr, stream);
     auto end_find = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff_find = end_find - start_find;
 
@@ -196,7 +196,7 @@ int test_main() {
 
     auto start_find = std::chrono::steady_clock::now();
     table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
-                 reinterpret_cast<float *>(d_def_val), true, stream);
+                 reinterpret_cast<float *>(d_def_val), true, nullptr, stream);
     auto end_find = std::chrono::steady_clock::now();
 
     auto start_accum = std::chrono::steady_clock::now();
