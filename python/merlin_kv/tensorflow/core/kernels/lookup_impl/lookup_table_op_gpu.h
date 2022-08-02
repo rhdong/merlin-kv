@@ -140,8 +140,7 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
       thrust::fill(policy, d_vals_ptr, d_vals_ptr + N, *d_def_val_ptr);
     }
 
-    table_->find(d_keys, (V*)d_vals, d_status, len, (const V*)d_def_val,
-                 is_full_size_default, nullptr, stream);
+    table_->find(d_keys, (V*)d_vals, d_status, len, nullptr, stream);
   }
 
   void get(const K* d_keys, ValueType<V>* d_vals, M* d_metas, bool* d_status,
