@@ -164,7 +164,6 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
 #endif
       thrust::fill(policy, d_vals_ptr, d_vals_ptr + N, *d_def_val_ptr);
     }
-    CUDA_CHECK(cudaMemset(d_vals, 0, len * sizeof(V) * DIM));
     table_->find(d_keys, (V*)d_vals, d_status, len, d_metas, stream);
   }
 
