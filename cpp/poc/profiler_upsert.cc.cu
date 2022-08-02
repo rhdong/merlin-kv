@@ -100,8 +100,9 @@ __global__ void upsert_kernel(const Key *__restrict keys,
     int key_pos = -1;
     size_t key_idx = t / TILE_SIZE;
     Key insert_key = *(keys + key_idx);
-    size_t bkt_idx = insert_key & (BUCKETS_NUM - 1);
-    size_t start_idx = insert_key & (MAX_BUCKET_SIZE - 1);
+    Key hashed_key = Murmur3HashDevice(insert_key);
+    size_t bkt_idx = hashed_key & (BUCKETS_NUM - 1);
+    size_t start_idx = hashed_key & (MAX_BUCKET_SIZE - 1);
 
     int src_lane;
 
