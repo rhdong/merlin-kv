@@ -516,9 +516,6 @@ __global__ void upsert_kernel_with_io(
           refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
                                                        bucket_max_size);
         }
-        for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-          bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
-        }
         copy_vector<V, DIM, TILE_SIZE>(g, values + key_idx,
                                        bucket->vectors + key_pos);
         break;
