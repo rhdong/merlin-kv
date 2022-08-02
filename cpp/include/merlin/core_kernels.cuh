@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cooperative_groups.h>
+#include <cooperative_groups/reduce.h>
 
 #include "types.cuh"
 #include "utils.cuh"
@@ -422,12 +423,14 @@ __global__ void read_kernel(V **__restrict src, V *__restrict dst,
   }
 }
 
-template <class K, class V, class M, size_t DIM>
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __forceinline__ __device__ void refresh_bucket_meta(
-    Bucket<K, V, M, DIM> *bucket, const size_t bucket_max_size) {
+    cg::thread_block_tile<TILE_SIZE> g, Bucket<K, V, M, DIM> *bucket,
+    const size_t bucket_max_size) {
   M min_val = MAX_META;
   int min_pos = 0;
-  for (int i = 0; i < bucket_max_size; i++) {
+
+  for (int i = tile.thread_rank(); i < bucket_max_size; i += TILE_SIZE) {
     if (bucket->keys[i] == EMPTY_KEY) {
       continue;
     }
@@ -436,8 +439,11 @@ __forceinline__ __device__ void refresh_bucket_meta(
       min_val = bucket->metas[i].val;
     }
   }
-  bucket->min_pos = min_pos;
-  bucket->min_meta = min_val;
+  M global_min_val = cg::reduce(g, min_val, cg::less<M>());
+  if (min_val == global_min_val) {
+    bucket->min_pos = min_pos;
+    bucket->min_meta = min_val;
+  }
 }
 
 /* Insert or update a Key-Value in the table,
@@ -459,7 +465,7 @@ template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel_with_io(
     const Table<K, V, M, DIM> *__restrict table, const K *__restrict keys,
     const V *__restrict values, const M *__restrict metas,
-    Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict sizes,
+    Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict buckets_size,
     const size_t bucket_max_size, const size_t buckets_num, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
@@ -483,41 +489,113 @@ __global__ void upsert_kernel_with_io(
     //      *(src_offset + key_idx) = key_idx;
     //    }
 
+    if (buckets_size[bkt_idx] < bucket_max_size) {
 #pragma unroll
-    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
-         tile_offset += TILE_SIZE) {
-      size_t key_offset =
-          (start_idx + tile_offset + rank) & (bucket_max_size - 1);
-      K current_key = *(bucket->keys + key_offset);
-      auto const found_or_empty_vote =
-          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
-      if (found_or_empty_vote) {
-        src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
-        if (rank == src_lane) {
-          bucket->keys[key_pos] = insert_key;
-          if (current_key == EMPTY_KEY) {
-            sizes[bkt_idx]++;
+      for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
+           tile_offset += TILE_SIZE) {
+        size_t key_offset =
+            (start_idx + tile_offset + rank) & (bucket_max_size - 1);
+        K current_key = *(bucket->keys + key_offset);
+        auto const found_or_empty_vote =
+            g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
+        if (found_or_empty_vote) {
+          src_lane = __ffs(found_or_empty_vote) - 1;
+          key_pos =
+              (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+          if (rank == src_lane) {
+            bucket->keys[key_pos] = insert_key;
+            if (current_key == EMPTY_KEY) {
+              buckets_size[bkt_idx]++;
+            }
+          }
+          for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
+            bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
           }
         }
-        for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-          bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
-        }
-        unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
-        return;
+      }
+    } else {
+      if (rank == 0) {
+        key_pos = bucket->min_pos;
+        *(bucket->keys + key_pos) = insert_key;
+        bucket->metas[key_pos].val = metas[key_idx];
+      }
+      refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
+      key_pos = g.shfl(key_pos, 0);
+      for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
+        bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
       }
     }
-    if (rank == 0 && key_pos == -1) {
-      key_pos = bucket->min_pos;
-      *(bucket->keys + key_pos) = insert_key;
-    }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+  }
+}
 
-    key_pos = g.shfl(key_pos, 0);
-    for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-      bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
+template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
+__global__ void upsert_kernel_with_io(
+    const Table<K, V, M, DIM> *__restrict table, const K *__restrict keys,
+    const V *__restrict values,
+    Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict buckets_size,
+    const size_t bucket_max_size, const size_t buckets_num, size_t N) {
+  size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
+  int rank = g.thread_rank();
+
+  for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
+    int key_pos = -1;
+
+    size_t key_idx = t / TILE_SIZE;
+    K insert_key = *(keys + key_idx);
+    K hashed_key = Murmur3HashDevice(insert_key);
+    size_t global_idx = hashed_key & (buckets_num * bucket_max_size - 1);
+    size_t bkt_idx = global_idx / bucket_max_size;
+    size_t start_idx = global_idx % bucket_max_size;
+
+    int src_lane;
+
+    Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
+    lock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
+    //    if (rank == 0 && src_offset != nullptr) {
+    //      *(src_offset + key_idx) = key_idx;
+    //    }
+
+    if (buckets_size[bkt_idx] < bucket_max_size) {
+#pragma unroll
+      for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
+           tile_offset += TILE_SIZE) {
+        size_t key_offset =
+            (start_idx + tile_offset + rank) & (bucket_max_size - 1);
+        K current_key = *(bucket->keys + key_offset);
+        auto const found_or_empty_vote =
+            g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
+        if (found_or_empty_vote) {
+          src_lane = __ffs(found_or_empty_vote) - 1;
+          key_pos =
+              (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+          if (rank == src_lane) {
+            bucket->keys[key_pos] = insert_key;
+            if (current_key == EMPTY_KEY) {
+              buckets_size[bkt_idx]++;
+            }
+          }
+          for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
+            bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
+          }
+        }
+      }
+    } else {
+      if (rank == 0) {
+        key_pos = bucket->min_pos;
+        *(bucket->keys + key_pos) = insert_key;
+        M cur_meta = 1 + bucket->cur_meta;
+        bucket->metas[key_pos].val = cur_meta;
+        bucket->cur_meta = cur_meta;
+      }
+      refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
+      key_pos = g.shfl(key_pos, 0);
+      for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
+        bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
+      }
     }
     unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
-    return;
   }
 }
 
