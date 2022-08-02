@@ -532,9 +532,9 @@ __global__ void upsert_kernel_with_io(
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel_with_io(
     const Table<K, V, M, DIM> *__restrict table, const K *__restrict keys,
-    const V *__restrict values,
-    Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict buckets_size,
-    const size_t bucket_max_size, const size_t buckets_num, size_t N) {
+    const V *__restrict values, Bucket<K, V, M, DIM> *__restrict buckets,
+    int *__restrict buckets_size, const size_t bucket_max_size,
+    const size_t buckets_num, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
   int rank = g.thread_rank();
@@ -574,7 +574,12 @@ __global__ void upsert_kernel_with_io(
             bucket->keys[key_pos] = insert_key;
             if (current_key == EMPTY_KEY) {
               buckets_size[bkt_idx]++;
+              g.sync();
             }
+          }
+          if (buckets_size[bkt_idx] >= bucket_max_size) {
+            refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
+                                                         bucket_max_size);
           }
           for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
             bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
