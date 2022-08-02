@@ -157,25 +157,16 @@ class HashTable {
       reserve(capacity() * 2);
     }
 
-    Vector **d_dst = nullptr;
-    int *d_src_offset = nullptr;
-
-    if (!is_pure_hbm_mode()) {
-      CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector *), stream));
-      CUDA_CHECK(cudaMemsetAsync(d_dst, 0, len * sizeof(Vector *), stream));
-      CUDA_CHECK(cudaMallocAsync(&d_src_offset, len * sizeof(int), stream));
-      CUDA_CHECK(cudaMemsetAsync(d_src_offset, 0, len * sizeof(int), stream));
-    }
-
-    // Determine bucket insert locations.
-    {
+    if (is_pure_hbm_mode()) {
       const size_t block_size = 128;
       const size_t N = len * table_->tile_size;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
       if (metas == nullptr) {
-        upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
-            <<<grid_size, block_size, 0, stream>>>(table_, keys, d_dst,
-                                                   d_src_offset, N);
+        upsert_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
+            <<<grid_size, block_size, 0, stream>>>(
+                table_, keys, reinterpret_cast<const Vector *>(vectors),
+                table_->buckets, table_->buckets_size, table_->bucket_max_size,
+                table_->buckets_num, N);
       } else {
         upsert_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
             <<<grid_size, block_size, 0, stream>>>(
@@ -183,39 +174,62 @@ class HashTable {
                 table_->buckets, table_->buckets_size, table_->bucket_max_size,
                 table_->buckets_num, N);
       }
-    }
+    } else {
+      Vector **d_dst = nullptr;
+      int *d_src_offset = nullptr;
+      CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector *), stream));
+      CUDA_CHECK(cudaMemsetAsync(d_dst, 0, len * sizeof(Vector *), stream));
+      CUDA_CHECK(cudaMallocAsync(&d_src_offset, len * sizeof(int), stream));
+      CUDA_CHECK(cudaMemsetAsync(d_src_offset, 0, len * sizeof(int), stream));
+      // Determine bucket insert locations.
+      {
+        const size_t block_size = 128;
+        const size_t N = len * table_->tile_size;
+        const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
+        if (metas == nullptr) {
+          upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
+              <<<grid_size, block_size, 0, stream>>>(
+                  table_, keys, d_dst, table_->buckets, table_->buckets_size,
+                  table_->bucket_max_size, table_->buckets_num, d_src_offset,
+                  N);
+        } else {
+          upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
+              <<<grid_size, block_size, 0, stream>>>(
+                  table_, keys, d_dst, table_->buckets, table_->buckets_size,
+                  table_->bucket_max_size, table_->buckets_num, d_src_offset,
+                  N);
+        }
+      }
 
-    if (!is_pure_hbm_mode()) {
-      static_assert(
-          sizeof(V *) == sizeof(uint64_t),
-          "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
+      {
+        static_assert(
+            sizeof(V *) == sizeof(uint64_t),
+            "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
 
-      const size_t N = len;
-      thrust::device_ptr<uint64_t> d_dst_ptr(
-          reinterpret_cast<uint64_t *>(d_dst));
-      thrust::device_ptr<int> d_src_offset_ptr(d_src_offset);
+        const size_t N = len;
+        thrust::device_ptr<uint64_t> d_dst_ptr(
+            reinterpret_cast<uint64_t *>(d_dst));
+        thrust::device_ptr<int> d_src_offset_ptr(d_src_offset);
 
 #if THRUST_VERSION >= 101600
-      auto policy = thrust::cuda::par_nosync.on(stream);
+        auto policy = thrust::cuda::par_nosync.on(stream);
 #else
-      auto policy = thrust::cuda::par.on(stream);
+        auto policy = thrust::cuda::par.on(stream);
 #endif
-      thrust::sort_by_key(policy, d_dst_ptr, d_dst_ptr + N, d_src_offset_ptr,
-                          thrust::less<uint64_t>());
-    }
+        thrust::sort_by_key(policy, d_dst_ptr, d_dst_ptr + N, d_src_offset_ptr,
+                            thrust::less<uint64_t>());
+      }
 
-    // Copy provided data to the bucket.
-    if (!is_pure_hbm_mode()) {
-      const size_t N = len * DIM;
-      const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
-      write_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-          reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset, N);
-    }
+      {
+        const size_t N = len * DIM;
+        const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
+        write_kernel<Key, Vector, M, DIM>
+            <<<grid_size, block_size_, 0, stream>>>(
+                reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset,
+                N);
+      }
 
-    if (d_dst != nullptr) {
       CUDA_CHECK(cudaFreeAsync(d_dst, stream));
-    }
-    if (d_src_offset != nullptr) {
       CUDA_CHECK(cudaFreeAsync(d_src_offset, stream));
     }
 
