@@ -912,7 +912,7 @@ __global__ void accum_kernel(
         if (rank == src_lane) {
           if (current_key == insert_key) {
             local_found = true;
-            *(found + key_idx) = local_found;
+            *(status + key_idx) = local_found;
           }
           if (local_found == existed[key_idx]) {
             bucket->keys[key_pos] = insert_key;
