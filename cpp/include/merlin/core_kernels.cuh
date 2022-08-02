@@ -534,14 +534,14 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     const size_t bucket_max_size = 128;  // table->bucket_max_size;
 
     size_t key_idx = t / TILE_SIZE;
-    Key insert_key = *(keys + key_idx);
-    Key hashed_key = Murmur3HashDevice(insert_key);
+    K insert_key = *(keys + key_idx);
+    K hashed_key = Murmur3HashDevice(insert_key);
     size_t bkt_idx = hashed_key & (524288 - 1);
     size_t start_idx = hashed_key & (bucket_max_size - 1);
 
     int src_lane;
 
-    const Bucket<Key> *bucket = buckets + bkt_idx;
+    const Bucket<K, V, M, DIM> *bucket = buckets + bkt_idx;
 
     if (rank == 0 && src_offset != nullptr) {
       *(src_offset + key_idx) = key_idx;
@@ -552,7 +552,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
          tile_offset += TILE_SIZE) {
       size_t key_offset =
           (start_idx + tile_offset + rank) & (bucket_max_size - 1);
-      Key current_key = *(bucket->keys + key_offset);
+      K current_key = *(bucket->keys + key_offset);
       auto const found_or_empty_vote =
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
@@ -577,6 +577,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
     return;
   }
 }
+
 /* Upsert with no user specified meta.
    The meta will be specified by kernel internally according to
    the `bucket->cur_meta` which always increment by 1 when insert happens,
