@@ -459,7 +459,7 @@ template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void upsert_kernel_with_io(
     const Table<K, V, M, DIM> *__restrict table, const K *__restrict keys,
     const V *__restrict values, const M *__restrict metas,
-    const Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict d_sizes,
+    Bucket<K, V, M, DIM> *__restrict buckets, int *__restrict sizes,
     size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
@@ -477,7 +477,7 @@ __global__ void upsert_kernel_with_io(
 
     int src_lane;
 
-    const Bucket<Key> *bucket = buckets + bkt_idx;
+    Bucket<Key> *bucket = buckets + bkt_idx;
 
     if (rank == 0 && src_offset != nullptr) {
       *(src_offset + key_idx) = key_idx;
@@ -497,7 +497,7 @@ __global__ void upsert_kernel_with_io(
         if (rank == src_lane) {
           *(bucket->keys + key_pos) = insert_key;
           if (current_key == EMPTY_KEY) {
-            d_sizes[bkt_idx]++;
+            sizes[bkt_idx]++;
           }
         }
         for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
