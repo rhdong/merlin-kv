@@ -430,7 +430,7 @@ __forceinline__ __device__ void refresh_bucket_meta(
   M min_val = MAX_META;
   int min_pos = 0;
 
-  for (int i = tile.thread_rank(); i < bucket_max_size; i += TILE_SIZE) {
+  for (int i = g.thread_rank(); i < bucket_max_size; i += TILE_SIZE) {
     if (bucket->keys[i] == EMPTY_KEY) {
       continue;
     }
