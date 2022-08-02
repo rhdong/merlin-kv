@@ -471,8 +471,9 @@ __global__ void upsert_kernel_with_io(
     size_t key_idx = t / TILE_SIZE;
     K insert_key = *(keys + key_idx);
     K hashed_key = Murmur3HashDevice(insert_key);
-    size_t bkt_idx = hashed_key & (buckets_num - 1);
-    size_t start_idx = hashed_key & (bucket_max_size - 1);
+    size_t global_idx = hashed_key & (buckets_num * bucket_max_size - 1);
+    size_t bkt_idx = global_idx / bucket_max_size;
+    size_t start_idx = global_idx % bucket_max_size;
 
     int src_lane;
 
