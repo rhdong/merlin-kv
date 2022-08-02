@@ -494,16 +494,15 @@ __global__ void upsert_kernel_with_io(
         src_lane = __ffs(found_or_empty_vote) - 1;
         key_pos = (start_idx + tile_offset + src_lane) & bucket_max_size;
         if (rank == src_lane) {
-          *(bucket->keys + key_pos) = insert_key;
+          bucket->keys[key_pos] = insert_key;
           if (current_key == EMPTY_KEY) {
             sizes[bkt_idx]++;
           }
         }
-        unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
-
         for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
           bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
         }
+        unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
         return;
       }
     }
@@ -511,12 +510,12 @@ __global__ void upsert_kernel_with_io(
       key_pos = bucket->min_pos;
       *(bucket->keys + key_pos) = insert_key;
     }
-    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 
     key_pos = g.shfl(key_pos, 0);
     for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
       bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
     }
+    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
     return;
   }
 }
