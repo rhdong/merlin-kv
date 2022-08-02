@@ -356,7 +356,7 @@ class HashTable {
       const size_t N = len * TILE_SIZE;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
 
-      lookup_kernel_with_io<Key, Vector, M, DIM>
+      lookup_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
           <<<grid_size, block_size, 0, stream>>>(
               table_, keys, reinterpret_cast<Vector *>(vectors), metas, found,
               table_->buckets, table_->buckets_size, table_->bucket_max_size,
@@ -375,7 +375,7 @@ class HashTable {
         const size_t N = len * TILE_SIZE;
         const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
 
-        lookup_kernel<Key, Vector, M, DIM>
+        lookup_kernel<Key, Vector, M, DIM, TILE_SIZE>
             <<<grid_size, block_size, 0, stream>>>(
                 table_, keys, reinterpret_cast<Vector **>(src), metas, found,
                 table_->buckets, table_->buckets_size, table_->bucket_max_size,
@@ -563,9 +563,10 @@ class HashTable {
     CUDA_CHECK(cudaMallocAsync(&d_count, sizeof(size_t), stream));
     CUDA_CHECK(cudaMemsetAsync(d_count, 0, sizeof(size_t), stream));
 
-    remove_kernel<Key, Vector, M, DIM><<<grid_size, block_size, 0, stream>>>(
-        table_, keys, d_count, table_->buckets, table_->buckets_size,
-        table_->bucket_max_size, table_->buckets_num, N);
+    remove_kernel<Key, Vector, M, DIM, TILE_SIZE>
+        <<<grid_size, block_size, 0, stream>>>(
+            table_, keys, d_count, table_->buckets, table_->buckets_size,
+            table_->bucket_max_size, table_->buckets_num, N);
 
     CUDA_CHECK(cudaMemcpyAsync(&count, d_count, sizeof(size_t),
                                cudaMemcpyDeviceToHost, stream));
