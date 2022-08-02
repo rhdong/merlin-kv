@@ -155,9 +155,6 @@ void create_table(Table<K, V, M, DIM> **table, size_t init_size = 134217728,
   (*table)->remaining_hbm_for_vectors = max_hbm_for_vectors;
   (*table)->primary = primary;
 
-  CUDA_CHECK(cudaMalloc((void **)&((*table)->total_size), sizeof(size_t)));
-  CUDA_CHECK(cudaMemset((void **)&((*table)->total_size), 0, sizeof(size_t)));
-
   CUDA_CHECK(cudaMalloc((void **)&((*table)->locks),
                         (*table)->buckets_num * sizeof(Mutex)));
   CUDA_CHECK(
@@ -220,8 +217,6 @@ void destroy_table(Table<K, V, M, DIM> **table) {
     release_locks<Mutex>
         <<<grid_size, block_size>>>((*table)->locks, 0, (*table)->buckets_num);
   }
-
-  CUDA_CHECK(cudaFree((*table)->total_size));
   CUDA_CHECK(cudaFree((*table)->slices));
   CUDA_CHECK(cudaFree((*table)->buckets_size));
   CUDA_CHECK(cudaFree((*table)->buckets));
