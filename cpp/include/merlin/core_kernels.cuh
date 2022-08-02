@@ -519,6 +519,7 @@ __global__ void upsert_kernel_with_io(
           for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
             bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
           }
+          break;
         }
       }
     } else {
@@ -595,6 +596,7 @@ __global__ void upsert_kernel_with_io(
           for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
             bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
           }
+          break;
         }
       }
     } else {
@@ -674,6 +676,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
             refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
                                                          bucket_max_size);
           }
+          break;
         }
       }
     } else {
@@ -815,6 +818,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
             refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
                                                          bucket_max_size);
           }
+          break;
         }
       }
     } else {
