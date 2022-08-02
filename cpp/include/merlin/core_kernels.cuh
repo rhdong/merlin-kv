@@ -492,7 +492,7 @@ __global__ void upsert_kernel_with_io(
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos = (start_idx + tile_offset + src_lane) & bucket_max_size;
+        key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
           if (current_key == EMPTY_KEY) {
