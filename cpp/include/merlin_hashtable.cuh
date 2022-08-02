@@ -379,7 +379,7 @@ class HashTable {
 
         lookup_kernel<Key, Vector, M, DIM>
             <<<grid_size, block_size, 0, stream>>>(
-                table_, keys, reinterpret_cast<const Vector **>(src), metas,
+                table_, keys, reinterpret_cast<Vector **>(src), metas,
                 found, table_->buckets, table_->buckets_size,
                 table_->bucket_max_size, table_->buckets_num, dst_offset, N);
       }
