@@ -476,7 +476,6 @@ __global__ void upsert_kernel_with_io(
 
   for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
     int key_pos = -1;
-    int local_size = 0;
     unsigned found_or_empty_vote = 0;
 
     size_t key_idx = t / TILE_SIZE;
@@ -485,6 +484,7 @@ __global__ void upsert_kernel_with_io(
     size_t global_idx = hashed_key & (buckets_num * bucket_max_size - 1);
     size_t bkt_idx = global_idx / bucket_max_size;
     size_t start_idx = global_idx % bucket_max_size;
+    int local_size = buckets_size[bkt_idx];
 
     int src_lane = -1;
 
@@ -502,20 +502,19 @@ __global__ void upsert_kernel_with_io(
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
         key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
-        local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
-          bucket->metas[key_pos].val = metas[key_idx];
+//          bucket->metas[key_pos].val = metas[key_idx];
           if (current_key == EMPTY_KEY) {
             buckets_size[bkt_idx]++;
             local_size++;
           }
         }
-        local_size = g.shfl(local_size, src_lane);
-        if (local_size >= bucket_max_size) {
-          refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
-                                                       bucket_max_size);
-        }
+//        local_size = g.shfl(local_size, src_lane);
+//        if (local_size >= bucket_max_size) {
+//          refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
+//                                                       bucket_max_size);
+//        }
         copy_vector<V, DIM, TILE_SIZE>(g, values + key_idx,
                                        bucket->vectors + key_pos);
         break;
