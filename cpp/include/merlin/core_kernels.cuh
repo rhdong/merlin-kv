@@ -501,8 +501,7 @@ __global__ void upsert_kernel_with_io(
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos =
-            (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+        key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
         local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
@@ -577,8 +576,7 @@ __global__ void upsert_kernel_with_io(
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos =
-            (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+        key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
         local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
@@ -658,8 +656,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos =
-            (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+        key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
         local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
@@ -738,8 +735,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos =
-            (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+        key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
         local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
@@ -779,7 +775,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
    the `bucket->cur_meta` which always increment by 1 when insert happens,
    we assume the cur_meta with `size_t` type will never overflow.
 */
-//template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
+// template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 //__global__ void accum_kernel_old(const Table<K, V, M, DIM> *__restrict table,
 //                                 const K *__restrict keys,
 //                                 V **__restrict vectors,
@@ -869,12 +865,6 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
 //    unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
 //  }
 //}
-__global__ void accum_kernel(const Table<K, V, M, DIM> *__restrict table,
-                                 const K *__restrict keys,
-                                 V **__restrict vectors,
-                                 const bool *__restrict existed,
-                                 int *__restrict src_offset,
-                                 bool *__restrict status, size_t N) {}
 template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
 __global__ void accum_kernel(
     const Table<K, V, M, DIM> *__restrict table, const K *__restrict keys,
@@ -917,8 +907,7 @@ __global__ void accum_kernel(
           g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
       if (found_or_empty_vote) {
         src_lane = __ffs(found_or_empty_vote) - 1;
-        key_pos =
-            (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
+        key_pos = (start_idx + tile_offset + src_lane) & (bucket_max_size - 1);
         local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           if (current_key == insert_key) {
