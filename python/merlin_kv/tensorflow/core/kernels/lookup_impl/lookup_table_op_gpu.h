@@ -129,8 +129,8 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
       const size_t N = len;
       thrust::device_ptr<ValueType<V>> d_vals_ptr(
           reinterpret_cast<ValueType<V>*>(d_vals));
-      thrust::device_ptr<ValueType<V>> d_def_val_ptr(
-          reinterpret_cast<ValueType<V>*>(d_def_val));
+      thrust::device_ptr<const ValueType<V>> d_def_val_ptr(
+          reinterpret_cast<const ValueType<V>*>(d_def_val));
 
 #if THRUST_VERSION >= 101600
       auto policy = thrust::cuda::par_nosync.on(stream);
@@ -155,8 +155,8 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
       const size_t N = len;
       thrust::device_ptr<ValueType<V>> d_vals_ptr(
           reinterpret_cast<ValueType<V>*>(d_vals));
-      thrust::device_ptr<ValueType<V>> d_def_val_ptr(
-          reinterpret_cast<ValueType<V>*>(d_def_val));
+      thrust::device_ptr<const ValueType<V>> d_def_val_ptr(
+          reinterpret_cast<const ValueType<V>*>(d_def_val));
 
 #if THRUST_VERSION >= 101600
       auto policy = thrust::cuda::par_nosync.on(stream);
