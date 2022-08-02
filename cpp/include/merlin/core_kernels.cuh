@@ -446,6 +446,14 @@ __forceinline__ __device__ void refresh_bucket_meta(
   }
 }
 
+template <class V, size_t DIM, uint32_t TILE_SIZE = 8>
+__forceinline__ __device__ void copy_vector(cg::thread_block_tile<TILE_SIZE> g,
+                                            const V *src, V *dst) {
+  for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
+    dst->value[i] = src->value[i];
+  }
+}
+
 /* Insert or update a Key-Value in the table,
    this operation will not really write the vector data
    into the bucket. Instead, it will only return the address in bucket for each
@@ -516,6 +524,8 @@ __global__ void upsert_kernel_with_io(
           for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
             bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
           }
+          copy_vector<V, DIM, TILE_SIZE>(values + key_idx,
+                                         bucket->vectors + key_pos);
           break;
         }
       }
@@ -527,9 +537,8 @@ __global__ void upsert_kernel_with_io(
       }
       refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
       key_pos = g.shfl(key_pos, 0);
-      for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-        bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
-      }
+      copy_vector<V, DIM, TILE_SIZE>(values + key_idx,
+                                     bucket->vectors + key_pos);
     }
     unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
@@ -587,9 +596,8 @@ __global__ void upsert_kernel_with_io(
             refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket,
                                                          bucket_max_size);
           }
-          for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-            bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
-          }
+          copy_vector<V, DIM, TILE_SIZE>(values + key_idx,
+                                         bucket->vectors + key_pos);
           break;
         }
       }
@@ -603,9 +611,8 @@ __global__ void upsert_kernel_with_io(
       }
       refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
       key_pos = g.shfl(key_pos, 0);
-      for (auto i = g.thread_rank(); i < DIM; i += g.size()) {
-        bucket->vectors[key_pos].value[i] = values[key_idx].value[i];
-      }
+      copy_vector<V, DIM, TILE_SIZE>(values + key_idx,
+                                     bucket->vectors + key_pos);
     }
     unlock<Mutex, TILE_SIZE>(g, table->locks[bkt_idx]);
   }
@@ -880,7 +887,7 @@ __global__ void lookup_kernel(const Table<K, V, M, DIM> *__restrict table,
     bool local_found = false;
 
     K find_key = keys[key_idx];
-    uint32_t hashed_key = Murmur3HashDevice(find_key) & 0xFFFFFFFF;
+    uint32_t hashed_key = Murmur3HashDevice(find_key);
     uint32_t bkt_idx = hashed_key & (table->buckets_num - 1);
     uint32_t start_idx = hashed_key & (bucket_max_size - 1);
 
