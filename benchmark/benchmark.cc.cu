@@ -15,7 +15,7 @@
  */
 
 #include <assert.h>
-#include <cuda_runtime.h>
+#include <iomanip>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,8 +165,18 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   size_t hmem_for_vectors_by_gb =
       init_capacity * DIM * sizeof(float) / 1024 / 1024 / 1024 -
       max_hbm_for_vectors_by_gb;
+  float insert_thruput = key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024.0) ;
+  float find_thruput = key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
+  std::cout << "|  " << DIM << " "
+            << "|  " << key_num_per_op << " "
+            << "|  " << std::fixed << std::setprecision(2) << target_load_factor << " "
+            << "|  " << max_hbm_for_vectors_by_gb << " "
+            << "|  " << hmem_for_vectors_by_gb << " "
+            << "|  " << std::fixed << std::setprecision(3) << insert_thruput << " "
+            << "|  " << std::fixed << std::setprecision(3) << find_thruput << " "
+            << std::endl;
   printf(
-      "|\t%d |\t%lu |\t%.2f |\t%lu |\t%lu "
+      "| %.3d |  %lu  | %.2f |\t%lu |\t%lu "
       "|\t%.3f |\t%.3f |\n",
       DIM, key_num_per_op, target_load_factor, max_hbm_for_vectors_by_gb,
       hmem_for_vectors_by_gb,
@@ -190,14 +200,28 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 }
 
 int main() {
-  printf(
-      "|\tdim |\tkeys_num_per_op |\tload_factor |\t HBM(GB) |\t HMEM(GB) "
-      "|\tinsert_or_assign(G-KV/s) |\tfind(G-KV/s) |\n");
-  printf(
-      "|-----------:|-----------------------:|-------------------:|------------"
-      "----:|----------------"
-      "-:|-----------"
-      "--------------:|------------:|\n");
+  std::cout << "| dim "
+            << "| keys_num_per_op "
+            << "| load_factor "
+            << "| HBM(GB) "
+            << "| HMEM(GB) "
+            << "| insert_or_assign(G-KV/s) "
+            << "| find(G-KV/s) "
+            << std::endl;
+  std::cout << "|:-----:"
+            //<< "| keys_num_per_op "
+            << "|:---------------:"
+            //<< "| load_factor "
+            << "|:------------:"
+            //<< "| HBM(GB) "
+            << "|:--------:"
+            //<< "| HMEM(GB) "
+            << "|:--------:"
+            //<< "| insert_or_assign(G-KV/s) "
+            << "|:------------------------:"
+            //<< "| find(G-KV/s) "
+            << "|:----------:"
+            << std::endl;
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 16,
                                    0.5);
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 0.75);
