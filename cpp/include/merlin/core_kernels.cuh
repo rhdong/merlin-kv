@@ -523,7 +523,7 @@ __global__ void upsert_kernel_with_io(
         break;
       }
     }
-    if (!found_or_empty_vote) {
+    if (!found_or_empty_vote && metas[key_idx] > bucket->min_meta) {
       if (rank == (bucket->min_pos % TILE_SIZE)) {
         key_pos = bucket->min_pos;
         *(bucket->keys + key_pos) = insert_key;
