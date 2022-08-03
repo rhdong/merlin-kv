@@ -175,13 +175,6 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
             << "|  " << std::fixed << std::setprecision(3) << insert_thruput << " "
             << "|  " << std::fixed << std::setprecision(3) << find_thruput << " "
             << std::endl;
-  printf(
-      "| %.3d |  %lu  | %.2f |\t%lu |\t%lu "
-      "|\t%.3f |\t%.3f |\n",
-      DIM, key_num_per_op, target_load_factor, max_hbm_for_vectors_by_gb,
-      hmem_for_vectors_by_gb,
-      key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024),
-      key_num_per_op / diff_find.count() / (1024 * 1024 * 1024));
 
   cudaStreamDestroy(stream);
 
@@ -200,7 +193,7 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 }
 
 int main() {
-  std::cout << "| dim "
+  std::cout << "|  dim "
             << "| keys_num_per_op "
             << "| load_factor "
             << "| HBM(GB) "
@@ -210,17 +203,17 @@ int main() {
             << std::endl;
   std::cout << "|:-----:"
             //<< "| keys_num_per_op "
-            << "|:---------------:"
+            << "|---------------:"
             //<< "| load_factor "
-            << "|:------------:"
+            << "|------------:"
             //<< "| HBM(GB) "
-            << "|:--------:"
+            << "|--------:"
             //<< "| HMEM(GB) "
-            << "|:--------:"
+            << "|--------:"
             //<< "| insert_or_assign(G-KV/s) "
-            << "|:------------------------:"
+            << "|------------------------:"
             //<< "| find(G-KV/s) "
-            << "|:----------:"
+            << "|----------:|"
             << std::endl;
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 16,
                                    0.5);
