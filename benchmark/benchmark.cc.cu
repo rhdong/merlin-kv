@@ -69,7 +69,7 @@ struct ValueArray {
   V value[DIM];
 };
 
-template<class K, class M, size_t DIM>
+template <class K, class M, size_t DIM>
 int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
               size_t key_num_per_op = 1 * 1024 * 1024UL,
               size_t max_hbm_for_vectors_by_gb = 16,
@@ -132,6 +132,12 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 
   K start = 0UL;
   float cur_load_factor = table_->load_factor();
+  auto start_insert_or_assign = std::chrono::steady_clock::now();
+  auto end_insert_or_assign = std::chrono::steady_clock::now();
+  auto start_find = std::chrono::steady_clock::now();
+  auto end_find = std::chrono::steady_clock::now();
+  std::chrono::duration<double> diff_insert_or_assign;
+  std::chrono::duration<double> diff_find;
 
   while (cur_load_factor < target_load_factor) {
     create_continuous_keys<K, M>(h_keys, h_metas, key_num_per_op, start);
@@ -140,18 +146,17 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
     cudaMemcpy(d_metas, h_metas, key_num_per_op * sizeof(M),
                cudaMemcpyHostToDevice);
 
-    auto start_insert_or_assign = std::chrono::steady_clock::now();
+    start_insert_or_assign = std::chrono::steady_clock::now();
     table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
                              d_metas, key_num_per_op, false, stream);
-    auto end_insert_or_assign = std::chrono::steady_clock::now();
-    std::chrono::duration<double> diff_insert_or_assign =
-        end_insert_or_assign - start_insert_or_assign;
+    end_insert_or_assign = std::chrono::steady_clock::now();
+    diff_insert_or_assign = end_insert_or_assign - start_insert_or_assign;
 
-    auto start_find = std::chrono::steady_clock::now();
+    start_find = std::chrono::steady_clock::now();
     table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
                  key_num_per_op, nullptr, stream);
-    auto end_find = std::chrono::steady_clock::now();
-    std::chrono::duration<double> diff_find = end_find - start_find;
+    end_find = std::chrono::steady_clock::now();
+    diff_find = end_find - start_find;
 
     cur_load_factor = table_->load_factor();
 
@@ -159,14 +164,16 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   }
 
   size_t hmem_for_vectors_by_gb =
-      init_capacity * dim * sizeof(float) / 1024 / 1024 / 1024 -
+      init_capacity * DIM * sizeof(float) / 1024 / 1024 / 1024 -
       max_hbm_for_vectors_by_gb;
   printf(
       "|\t%d |\t%lu |\t%.2f |\t%lu |\t%lu "
       "|\t%.3f |\t%.3f |\n",
       dim, key_num_per_op, target_load_factor, max_hbm_for_vectors_by_gb,
-      hmem_for_vectors_by_gb, key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024),
-      key_num_per_op / diff_find.count() / (1024 * 1024 * 1024), cur_load_factor);
+      hmem_for_vectors_by_gb,
+      key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024),
+      key_num_per_op / diff_find.count() / (1024 * 1024 * 1024),
+      cur_load_factor);
 
   cudaStreamDestroy(stream);
 
@@ -192,7 +199,8 @@ int main() {
       "|\t---:|\t---------------:|\t-----------:|\t--------:|\t----------------"
       "-:|\t---"
       "--------------:|\t----:|\n");
-  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 16, 0.5);
+  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 16,
+                                   0.5);
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 0.75);
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 1.0);
   //
