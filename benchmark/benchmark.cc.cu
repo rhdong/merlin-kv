@@ -73,7 +73,7 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
               size_t key_num_per_op = 1 * 1024 * 1024UL, size_t DIM = 4,
               size_t max_hbm_for_vectors_by_gb = 16,
               float target_load_factor = 1.0) {
-  uint64_t max_size = init_capacity, using K = uint64_t;
+  using K = uint64_t;
   using M = uint64_t;
   using Vector = ValueArray<float, DIM>;
   using Table = nv::merlin::HashTable<K, float, M, DIM>;
@@ -85,7 +85,7 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 
   std::unique_ptr<Table> table_ =
       std::make_unique<Table>(init_capacity,      /* init_capacity */
-                              max_size,           /* max_size */
+                              init_capacity,      /* max_size */
                               nv::merlin::GB(16), /* max_hbm_for_vectors */
                               0.75,               /* max_load_factor */
                               128,                /* buckets_max_size */
