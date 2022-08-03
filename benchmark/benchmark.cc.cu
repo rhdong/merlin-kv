@@ -176,6 +176,7 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   float find_tput = key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
 
   cout << "|" << rep(1) << setw(3) << setfill(' ') << DIM << " "
+       << "|" << rep(1) << setw(11) << setfill(' ') << init_capacity << " "
        << "|" << rep(9) << key_num_per_op << " "
        << "|" << rep(8) << fixed << setprecision(2) << load_factor << " "
        << "|" << rep(5) << setw(3) << setfill(' ') << hbm4values << " "
@@ -206,6 +207,7 @@ int main() {
   cudaMemGetInfo(&free, &total);
   cout << endl
        << "| dim "
+       << "| capacity "
        << "| keys_num_per_op "
        << "| load_factor "
        << "| HBM(GB) "
@@ -213,6 +215,8 @@ int main() {
        << "| insert_or_assign(G-KV/s) "
        << "| find(G-KV/s) |" << endl;
   cout << "|----:"
+       //<< "| capacity "
+       << "|----------------:"
        //<< "| keys_num_per_op "
        << "|----------------:"
        //<< "| load_factor "
