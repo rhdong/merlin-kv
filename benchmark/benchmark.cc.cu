@@ -34,7 +34,7 @@
 
 using std::cout;
 using std::endl;
-using std::fill;
+using std::fill<char>;
 using std::fixed;
 using std::setprecision;
 using std::setw;
