@@ -34,10 +34,10 @@
 
 using std::cout;
 using std::endl;
-using std::setw;
 using std::fill;
 using std::fixed;
 using std::setprecision;
+using std::setw;
 
 uint64_t getTimestamp() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -81,7 +81,7 @@ struct ValueArray {
 template <class K, class M, size_t DIM>
 int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
               size_t key_num_per_op = 1 * 1024 * 1024UL,
-              size_t max_hbm_for_vectors = 16, float load_factor = 1.0) {
+              size_t hbm_for_vectors = 16, float load_factor = 1.0) {
   using Vector = ValueArray<float, DIM>;
   using Table = nv::merlin::HashTable<K, float, M, DIM>;
 
@@ -91,14 +91,14 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   bool *h_found;
 
   std::unique_ptr<Table> table_ = std::make_unique<Table>(
-      init_capacity,                       /* init_capacity */
-      init_capacity,                       /* max_size */
-      nv::merlin::GB(max_hbm_for_vectors), /* max_hbm_for_vectors */
-      0.75,                                /* max_load_factor */
-      128,                                 /* buckets_max_size */
-      nullptr,                             /* initializer */
-      true,                                /* primary */
-      1024                                 /* block_size */
+      init_capacity,                   /* init_capacity */
+      init_capacity,                   /* max_size */
+      nv::merlin::GB(hbm_for_vectors), /* hbm_for_vectors */
+      0.75,                            /* max_load_factor */
+      128,                             /* buckets_max_size */
+      nullptr,                         /* initializer */
+      true,                            /* primary */
+      1024                             /* block_size */
   );
 
   cudaMallocHost(&h_keys, key_num_per_op * sizeof(K));          // 8MB
@@ -172,21 +172,19 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 
   size_t hmem_for_vectors =
       init_capacity * DIM * sizeof(float) / (1024 * 1024 * 1024);
-  hmem_for_vectors = hmem_for_vectors < max_hbm_for_vectors
+  hmem_for_vectors = hmem_for_vectors < hbm_for_vectors
                          ? 0
-                         : (hmem_for_vectors - max_hbm_for_vectors);
-  float insert_thruput =
+                         : (hmem_for_vectors - hbm_for_vectors);
+  float insert_tput =
       key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024.0);
-  float find_thruput =
-      key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
+  float find_tput = key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
   std::cout << "|" << rep(4) << DIM << " "
             << "|" << rep(9) << key_num_per_op << " "
-            << "|" << rep(8) << fixed << setp(2) << load_factor << " "
-            << "|" << rep(4) << setw(3) << fill(' ') << max_hbm_for_vectors
-            << " "
+            << "|" << rep(8) << fixed << setprecision(2) << load_factor << " "
+            << "|" << rep(4) << setw(3) << fill(' ') << hbm_for_vectors << " "
             << "|" << rep(6) << setw(3) << fill(' ') << hmem_for_vectors << " "
-            << "|" << rep(19) << fixed << setprecision(3) << insert_thruput << " "
-            << "|" << rep(8) << fixed << setprecision(3) << find_thruput << " |"
+            << "|" << rep(19) << fixed << setprecision(3) << insert_tput << " "
+            << "|" << rep(8) << fixed << setprecision(3) << find_tput << " |"
             << endl;
   //|  dim | keys_num_per_op | load_factor | HBM(GB) | HMEM(GB) |
   // insert_or_assign(G-KV/s) | find(G-KV/s) |
