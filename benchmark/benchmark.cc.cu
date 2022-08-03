@@ -15,13 +15,13 @@
  */
 
 #include <assert.h>
-#include <iomanip>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <algorithm>
 #include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <thread>
@@ -82,16 +82,16 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   Vector *h_vectors;
   bool *h_found;
 
-  std::unique_ptr<Table> table_ =
-      std::make_unique<Table>(init_capacity,      /* init_capacity */
-                              init_capacity,      /* max_size */
-                              nv::merlin::GB(16), /* max_hbm_for_vectors */
-                              0.75,               /* max_load_factor */
-                              128,                /* buckets_max_size */
-                              nullptr,            /* initializer */
-                              true,               /* primary */
-                              1024                /* block_size */
-      );
+  std::unique_ptr<Table> table_ = std::make_unique<Table>(
+      init_capacity,                             /* init_capacity */
+      init_capacity,                             /* max_size */
+      nv::merlin::GB(max_hbm_for_vectors_by_gb), /* max_hbm_for_vectors */
+      0.75,                                      /* max_load_factor */
+      128,                                       /* buckets_max_size */
+      nullptr,                                   /* initializer */
+      true,                                      /* primary */
+      1024                                       /* block_size */
+  );
 
   cudaMallocHost(&h_keys, key_num_per_op * sizeof(K));          // 8MB
   cudaMallocHost(&h_metas, key_num_per_op * sizeof(M));         // 8MB
@@ -163,18 +163,30 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   }
 
   size_t hmem_for_vectors_by_gb =
-      init_capacity * DIM * sizeof(float) / 1024 / 1024 / 1024 -
+      init_capacity * DIM * sizeof(float) / (1024 * 1024 * 1024) -
       max_hbm_for_vectors_by_gb;
-  float insert_thruput = key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024.0) ;
-  float find_thruput = key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
-  std::cout << "|  " << DIM << " "
-            << "|  " << key_num_per_op << " "
-            << "|  " << std::fixed << std::setprecision(2) << target_load_factor << " "
-            << "|  " << max_hbm_for_vectors_by_gb << " "
-            << "|  " << hmem_for_vectors_by_gb << " "
-            << "|  " << std::fixed << std::setprecision(3) << insert_thruput << " "
-            << "|  " << std::fixed << std::setprecision(3) << find_thruput << " |"
-            << std::endl;
+  float insert_thruput =
+      key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024.0);
+  float find_thruput =
+      key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
+  std::cout << "|    " << DIM << " "
+            << "|         " << key_num_per_op << " "
+            << "|        " << std::fixed << std::setprecision(2)
+            << target_load_factor << " "
+            << "|    " << std::setw(3) << std::fill(" ")
+            << max_hbm_for_vectors_by_gb << " "
+            << "|      " << std::setw(3) << std::fill(" ") < < < <
+      hmem_for_vectors_by_gb << " "
+                             << "|                    " << std::fixed
+                             << std::setprecision(3) << insert_thruput << " "
+                             << "|        " << std::fixed
+                             << std::setprecision(3) << find_thruput << " |"
+                             << std::endl;
+  //|  dim | keys_num_per_op | load_factor | HBM(GB) | HMEM(GB) |
+  //insert_or_assign(G-KV/s) | find(G-KV/s) |
+  //|-----:|----------------:|------------:|--------:|---------:|-------------------------:|-------------:|
+  //|    4 |         1048576 |        0.50 |      16 |      118 | 0.617
+  //|        1.175 |
 
   cudaStreamDestroy(stream);
 
@@ -199,22 +211,20 @@ int main() {
             << "| HBM(GB) "
             << "| HMEM(GB) "
             << "| insert_or_assign(G-KV/s) "
-            << "| find(G-KV/s) |"
-            << std::endl;
+            << "| find(G-KV/s) |" << std::endl;
   std::cout << "|-----:"
             //<< "| keys_num_per_op "
-            << "|---------------:"
+            << "|----------------:"
             //<< "| load_factor "
             << "|------------:"
             //<< "| HBM(GB) "
             << "|--------:"
             //<< "| HMEM(GB) "
-            << "|--------:"
+            << "|---------:"
             //<< "| insert_or_assign(G-KV/s) "
-            << "|------------------------:"
+            << "|-------------------------:"
             //<< "| find(G-KV/s) "
-            << "|----------:|"
-            << std::endl;
+            << "|-------------:|" << std::endl;
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 16,
                                    0.5);
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 0.75);
