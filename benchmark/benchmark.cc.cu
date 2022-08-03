@@ -173,7 +173,7 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
             << "|  " << max_hbm_for_vectors_by_gb << " "
             << "|  " << hmem_for_vectors_by_gb << " "
             << "|  " << std::fixed << std::setprecision(3) << insert_thruput << " "
-            << "|  " << std::fixed << std::setprecision(3) << find_thruput << " "
+            << "|  " << std::fixed << std::setprecision(3) << find_thruput << " |"
             << std::endl;
 
   cudaStreamDestroy(stream);
@@ -199,9 +199,9 @@ int main() {
             << "| HBM(GB) "
             << "| HMEM(GB) "
             << "| insert_or_assign(G-KV/s) "
-            << "| find(G-KV/s) "
+            << "| find(G-KV/s) |"
             << std::endl;
-  std::cout << "|:-----:"
+  std::cout << "|-----:"
             //<< "| keys_num_per_op "
             << "|---------------:"
             //<< "| load_factor "
