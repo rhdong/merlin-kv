@@ -572,7 +572,6 @@ class HashTable {
                                cudaMemcpyDeviceToHost, stream));
     CUDA_CHECK(cudaFreeAsync(d_count, stream));
     CUDA_CHECK(cudaStreamSynchronize(stream));
-    std::cout << "--------------erase cout = " << count << std::endl;
     CudaCheckError();
     return count;
   }

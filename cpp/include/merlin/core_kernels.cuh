@@ -1044,7 +1044,7 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
           local_found = (current_key == find_key);
           if (local_found) {
             atomicAdd(count, 1);
-            *(buckets->keys + key_pos) = EMPTY_KEY;
+            *(bucket->keys + key_pos) = EMPTY_KEY;
             buckets_size[bkt_idx]--;
             empty_pos = key_pos;
             for (int i = 1; i < bucket_max_size; i++) {
@@ -1057,13 +1057,13 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
               global_idx = hashed_key & (buckets_num * bucket_max_size - 1);
               start_idx = global_idx % bucket_max_size;
               if (key_idx < start_idx || start_idx < empty_pos) {
-                *(buckets->keys + empty_pos) = *(buckets->keys + key_idx);
-                buckets->metas[empty_pos].val = buckets->metas[key_idx].val;
+                *(bucket->keys + empty_pos) = *(bucket->keys + key_idx);
+                bucket->metas[empty_pos].val = bucket->metas[key_idx].val;
                 for (int j = 0; j < DIM; j++) {
-                  buckets->vectors[empty_pos].value[j] =
-                      buckets->vectors[key_idx].value[j];
+                  bucket->vectors[empty_pos].value[j] =
+                      bucket->vectors[key_idx].value[j];
                 }
-                *(buckets->keys + key_idx) = EMPTY_KEY;
+                *(bucket->keys + key_idx) = EMPTY_KEY;
                 empty_pos = key_idx;
               }
             }
