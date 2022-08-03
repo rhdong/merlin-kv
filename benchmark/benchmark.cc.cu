@@ -69,15 +69,6 @@ struct ValueArray {
   V value[DIM];
 };
 
-template <class K, class M>
-__forceinline__ __device__ bool erase_if_pred(const K &key, const M &meta) {
-  return ((key % 2) == 1);
-}
-
-/* A demo of Pred for erase_if */
-template <class K, class M>
-__device__ Table::Pred pred = erase_if_pred<K, M>;
-
 int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
               size_t key_num_per_op = 1 * 1024 * 1024UL, size_t DIM = 4,
               size_t max_hbm_for_vectors_by_gb = 16,
