@@ -672,7 +672,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
         break;
       }
     }
-    if (!found_or_empty_vote && metas[key_idx] > bucket->min_val) {
+    if (!found_or_empty_vote && metas[key_idx] > bucket->min_meta) {
       if (rank == (bucket->min_pos % TILE_SIZE)) {
         key_pos = bucket->min_pos;
         *(bucket->keys + key_pos) = insert_key;
