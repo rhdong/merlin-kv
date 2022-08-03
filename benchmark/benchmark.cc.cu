@@ -168,11 +168,10 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   printf(
       "|\t%d |\t%lu |\t%.2f |\t%lu |\t%lu "
       "|\t%.3f |\t%.3f |\n",
-      dim, key_num_per_op, target_load_factor, max_hbm_for_vectors_by_gb,
+      DIM, key_num_per_op, target_load_factor, max_hbm_for_vectors_by_gb,
       hmem_for_vectors_by_gb,
       key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024),
-      key_num_per_op / diff_find.count() / (1024 * 1024 * 1024),
-      cur_load_factor);
+      key_num_per_op / diff_find.count() / (1024 * 1024 * 1024));
 
   cudaStreamDestroy(stream);
 
