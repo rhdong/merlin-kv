@@ -1030,7 +1030,9 @@ class VariableTest(test.TestCase):
           while len(keys) < num:
             key = np.random.randint(min, max, size=1, dtype=np.int64)[0]
             hashed_key = Murmur3Hash(key)
-            if (hashed_key % (bucket_num * default_buckets_size)) == target_bucket:
+            global_idx = hashed_key % (bucket_num * default_buckets_size)
+            bkt_idx = int(global_idx / default_buckets_size)
+            if bkt_idx == target_bucket:
               keys.add(key)
           return list(keys)
 
