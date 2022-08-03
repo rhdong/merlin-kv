@@ -121,10 +121,10 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
   void get(const K* d_keys, ValueType<V>* d_vals, bool* d_status, size_t len,
            const ValueType<V>* d_def_val, bool is_full_size_default,
            cudaStream_t stream) const override {
-
     if (is_full_size_default) {
       CUDA_CHECK(cudaMemcpy((void*)d_vals, (void*)d_def_val,
-                            sizeof(ValueArray<V, DIM>) * len, cudaMemcpyDefault));
+                            sizeof(ValueArray<V, DIM>) * len,
+                            cudaMemcpyDefault));
 
     } else {
       const size_t N = len;
@@ -149,7 +149,8 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
            cudaStream_t stream) const override {
     if (is_full_size_default) {
       CUDA_CHECK(cudaMemcpy((void*)d_vals, (void*)d_def_val,
-                            sizeof(ValueArray<V, DIM>) * len, cudaMemcpyDefault));
+                            sizeof(ValueArray<V, DIM>) * len,
+                            cudaMemcpyDefault));
 
     } else {
       const size_t N = len;
