@@ -69,7 +69,7 @@ struct ValueArray {
   V value[DIM];
 };
 
-template<K, M, size_t DIM>
+template<class K, class M, size_t DIM>
 int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
               size_t key_num_per_op = 1 * 1024 * 1024UL,
               size_t max_hbm_for_vectors_by_gb = 16,
