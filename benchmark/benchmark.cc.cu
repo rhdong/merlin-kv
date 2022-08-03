@@ -108,8 +108,6 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 
   cudaMemset(h_vectors, 0, key_num_per_op * sizeof(Vector));
 
-  create_random_keys<K, M>(h_keys, h_metas, key_num_per_op);
-
   K *d_keys;
   M *d_metas = nullptr;
   Vector *d_vectors;
@@ -176,14 +174,15 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   float insert_tput =
       key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024.0);
   float find_tput = key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
-  std::cout << "|" << rep(4) << DIM << " "
-            << "|" << rep(9) << key_num_per_op << " "
-            << "|" << rep(8) << fixed << setprecision(2) << load_factor << " "
-            << "|" << rep(5) << setw(3) << setfill(' ') << hbm4values << " "
-            << "|" << rep(6) << setw(3) << setfill(' ') << hmem4values << " "
-            << "|" << rep(20) << fixed << setprecision(3) << insert_tput << " "
-            << "|" << rep(8) << fixed << setprecision(3) << find_tput << " |"
-            << endl;
+
+  cout << "|" << rep(3) << DIM << " "
+       << "|" << rep(9) << key_num_per_op << " "
+       << "|" << rep(8) << fixed << setprecision(2) << load_factor << " "
+       << "|" << rep(5) << setw(3) << setfill(' ') << hbm4values << " "
+       << "|" << rep(6) << setw(3) << setfill(' ') << hmem4values << " "
+       << "|" << rep(20) << fixed << setprecision(3) << insert_tput << " "
+       << "|" << rep(8) << fixed << setprecision(3) << find_tput << " |"
+       << endl;
 
   cudaStreamDestroy(stream);
 
@@ -202,40 +201,43 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 }
 
 int main() {
-  std::cout << "|  dim "
-            << "| keys_num_per_op "
-            << "| load_factor "
-            << "| HBM(GB) "
-            << "| HMEM(GB) "
-            << "| insert_or_assign(G-KV/s) "
-            << "| find(G-KV/s) |" << std::endl;
-  std::cout << "|-----:"
-            //<< "| keys_num_per_op "
-            << "|----------------:"
-            //<< "| load_factor "
-            << "|------------:"
-            //<< "| HBM(GB) "
-            << "|--------:"
-            //<< "| HMEM(GB) "
-            << "|---------:"
-            //<< "| insert_or_assign(G-KV/s) "
-            << "|-------------------------:"
-            //<< "| find(G-KV/s) "
-            << "|-------------:|" << std::endl;
-  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.5);
+  size_t free, total;
+  cudaSetDevice(0);
+  cudaMemGetInfo( &free, &total );
+  cout << endl
+       << "| dim "
+       << "| keys_num_per_op "
+       << "| load_factor "
+       << "| HBM(GB) "
+       << "| HMEM(GB) "
+       << "| insert_or_assign(G-KV/s) "
+       << "| find(G-KV/s) |" << ndl;
+  cout << "|----:"
+       //<< "| keys_num_per_op "
+       << "|----------------:"
+       //<< "| load_factor "
+       << "|------------:"
+       //<< "| HBM(GB) "
+       << "|--------:"
+       //<< "| HMEM(GB) "
+       << "|---------:"
+       //<< "| insert_or_assign(G-KV/s) "
+       << "|-------------------------:"
+       //<< "| find(G-KV/s) "
+       << "|-------------:|" << endl;
+
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
-  //
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 0, 0.5);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 0, 0.75);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 0, 1.0);
 
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 128, 64, 0.5);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 128, 64, 0.75);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 128, 64, 1.0);
-  //
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 128, 64, 0.5);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 128, 64, 0.75);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 128, 64, 1.0);
+  if(free / (1 >> 30) >= 16 ) {
+    test_main<uint64_t, uint64_t, 64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
+    test_main<uint64_t, uint64_t, 64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
+  }
+
+  if(free / (1 >> 30) >= 56 ) {
+    test_main<uint64_t, uint64_t, 128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
+    test_main<uint64_t, uint64_t, 128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.0);
+  }
+
   return 0;
 }
