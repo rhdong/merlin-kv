@@ -524,13 +524,14 @@ __global__ void upsert_kernel_with_io(
       }
     }
     if (!found_or_empty_vote && metas[key_idx] > bucket->min_meta) {
-      if (rank == (bucket->min_pos % TILE_SIZE)) {
+      src_lane = (bucket->min_pos % TILE_SIZE);
+      if (rank == src_lane) {
         key_pos = bucket->min_pos;
         *(bucket->keys + key_pos) = insert_key;
         bucket->metas[key_pos].val = metas[key_idx];
       }
       refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
-      key_pos = g.shfl(key_pos, 0);
+      key_pos = g.shfl(key_pos, src_lane);
       copy_vector<V, DIM, TILE_SIZE>(g, values + key_idx,
                                      bucket->vectors + key_pos);
     }
@@ -598,7 +599,8 @@ __global__ void upsert_kernel_with_io(
       }
     }
     if (!found_or_empty_vote) {
-      if (rank == (bucket->min_pos % TILE_SIZE)) {
+      src_lane = (bucket->min_pos % TILE_SIZE);
+      if (rank == src_lane) {
         key_pos = bucket->min_pos;
         *(bucket->keys + key_pos) = insert_key;
         M cur_meta = bucket->cur_meta + 1;
@@ -606,7 +608,7 @@ __global__ void upsert_kernel_with_io(
         bucket->metas[key_pos].val = cur_meta;
       }
       refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
-      key_pos = g.shfl(key_pos, 0);
+      key_pos = g.shfl(key_pos, src_lane);
       copy_vector<V, DIM, TILE_SIZE>(g, values + key_idx,
                                      bucket->vectors + key_pos);
     }

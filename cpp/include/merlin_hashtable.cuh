@@ -159,7 +159,7 @@ class HashTable {
 
     if (is_pure_hbm_mode()) {
       const size_t block_size = 128;
-      const size_t N = len * table_->tile_size;
+      const size_t N = len * TILE_SIZE;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
       if (metas == nullptr) {
         upsert_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
@@ -184,7 +184,7 @@ class HashTable {
       // Determine bucket insert locations.
       {
         const size_t block_size = 128;
-        const size_t N = len * table_->tile_size;
+        const size_t N = len * TILE_SIZE;
         const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
         if (metas == nullptr) {
           upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
@@ -281,7 +281,7 @@ class HashTable {
 
     {
       const size_t block_size = 128;
-      const size_t N = len * table_->tile_size;
+      const size_t N = len * TILE_SIZE;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
       accum_kernel<Key, Vector, M, DIM><<<grid_size, block_size, 0, stream>>>(
           table_, keys, dst, exists, table_->buckets, table_->buckets_size,
