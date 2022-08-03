@@ -208,7 +208,7 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   cudaFree(d_vectors_ptr);
   cudaFree(d_found);
 
-  return 0;
+  return;
 }
 
 int main() {
