@@ -91,7 +91,7 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   cudaSetDevice(0);
   cudaMemGetInfo(&free, &total);
 
-  if (free / (1 << 30) > hbm4values) {
+  if (free / (1 << 30) < hbm4values) {
     return;
   }
 
