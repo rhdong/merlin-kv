@@ -211,7 +211,7 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   return;
 }
 
-int main() {
+void print_title() {
   cout << endl
        << "| dim "
        << "|    capacity "
@@ -236,14 +236,34 @@ int main() {
        << "|-------------------------:"
        //<< "| find(G-KV/s) "
        << "|-------------:|" << endl;
+}
 
+int main() {
+
+  cout << "On pure HBM mode: "
+  print_title();
+  test_main<4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.50);
   test_main<4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
-  test_main<64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
-  test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
+  test_main<4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.00);
+  test_main<8>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.50);
+  test_main<8>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
+  test_main<8>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.00);
+  test_main<8>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.50);
+  test_main<16>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
+  test_main<16>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.00);
+  cout << endl;
 
-  test_main<4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
-  test_main<64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
-  test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.0);
+
+  cout << "On HBM+HMEM hybrid mode: "
+  print_title();
+  test_main<64>(1024 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.50);
+  test_main<64>(1024 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
+  test_main<64>(1024 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.00);
+  test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.50);
+  test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
+  test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.00);
+  cout << endl;
+
 
   return 0;
 }
