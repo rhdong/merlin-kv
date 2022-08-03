@@ -179,16 +179,11 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   std::cout << "|" << rep(4) << DIM << " "
             << "|" << rep(9) << key_num_per_op << " "
             << "|" << rep(8) << fixed << setprecision(2) << load_factor << " "
-            << "|" << rep(4) << setw(3) << setfill(' ') << hbm4values << " "
+            << "|" << rep(5) << setw(3) << setfill(' ') << hbm4values << " "
             << "|" << rep(6) << setw(3) << setfill(' ') << hmem4values << " "
-            << "|" << rep(19) << fixed << setprecision(3) << insert_tput << " "
+            << "|" << rep(20) << fixed << setprecision(3) << insert_tput << " "
             << "|" << rep(8) << fixed << setprecision(3) << find_tput << " |"
             << endl;
-  //|  dim | keys_num_per_op | load_factor | HBM(GB) | HMEM(GB) |
-  // insert_or_assign(G-KV/s) | find(G-KV/s) |
-  //|-----:|----------------:|------------:|--------:|---------:|-------------------------:|-------------:|
-  //|    4 |         1048576 |        0.50 |      16 |      118 | 0.617
-  //|        1.175 |
 
   cudaStreamDestroy(stream);
 
@@ -229,8 +224,10 @@ int main() {
             << "|-------------:|" << std::endl;
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 16,
                                    0.5);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 0.75);
-  //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 1.0);
+  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16,
+                                   0.75);
+  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16,
+                                   1.0);
   //
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 0, 0.5);
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 0, 0.75);
