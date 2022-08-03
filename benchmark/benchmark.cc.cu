@@ -175,7 +175,7 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
       key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024.0);
   float find_tput = key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
 
-  cout << "|" << rep(3) << DIM << " "
+  cout << "|" << rep(1) << setw(3) << setfill(' ') << DIM << " "
        << "|" << rep(9) << key_num_per_op << " "
        << "|" << rep(8) << fixed << setprecision(2) << load_factor << " "
        << "|" << rep(5) << setw(3) << setfill(' ') << hbm4values << " "
@@ -227,15 +227,22 @@ int main() {
        << "|-------------:|" << endl;
 
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
-  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
 
   if(free / (1 << 30) >= 16 ) {
     test_main<uint64_t, uint64_t, 64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
-    test_main<uint64_t, uint64_t, 64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
   }
 
   if(free / (1 << 30) >= 56 ) {
     test_main<uint64_t, uint64_t, 128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
+  }
+
+  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
+  
+  if(free / (1 << 30) >= 16 ) {
+    test_main<uint64_t, uint64_t, 64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
+  }
+
+  if(free / (1 << 30) >= 56 ) {
     test_main<uint64_t, uint64_t, 128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.0);
   }
 
