@@ -69,12 +69,11 @@ struct ValueArray {
   V value[DIM];
 };
 
+template<K, M, size_t DIM>
 int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
-              size_t key_num_per_op = 1 * 1024 * 1024UL, size_t DIM = 4,
+              size_t key_num_per_op = 1 * 1024 * 1024UL,
               size_t max_hbm_for_vectors_by_gb = 16,
               float target_load_factor = 1.0) {
-  using K = uint64_t;
-  using M = uint64_t;
   using Vector = ValueArray<float, DIM>;
   using Table = nv::merlin::HashTable<K, float, M, DIM>;
 
@@ -193,7 +192,7 @@ int main() {
       "|\t---:|\t---------------:|\t-----------:|\t--------:|\t----------------"
       "-:|\t---"
       "--------------:|\t----:|\n");
-  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 0.5);
+  test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 16, 0.5);
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 0.75);
   //  test_main(64 * 1024 * 1024UL, 1 * 1024 * 1024UL, 4, 16, 1.0);
   //
