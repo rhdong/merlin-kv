@@ -108,7 +108,6 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   Vector *d_def_val;
   Vector **d_vectors_ptr;
   bool *d_found;
-  size_t dump_counter = 0;
 
   cudaMalloc(&d_keys, key_num_per_op * sizeof(K));                // 8MB
   cudaMalloc(&d_metas, key_num_per_op * sizeof(M));               // 8MB
