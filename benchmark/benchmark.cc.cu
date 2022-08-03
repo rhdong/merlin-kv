@@ -82,10 +82,10 @@ template <size_t DIM>
 void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
                size_t key_num_per_op = 1 * 1024 * 1024UL,
                size_t hbm4values = 16, float load_factor = 1.0) {
-  using Vector = ValueArray<float, DIM>;
-  using Table = nv::merlin::HashTable<K, float, M, DIM>;
   using K = uint64_t;
   using M = uint64_t;
+  using Vector = ValueArray<float, DIM>;
+  using Table = nv::merlin::HashTable<K, float, M, DIM>;
 
   size_t free, total;
   cudaSetDevice(0);
@@ -240,7 +240,7 @@ int main() {
   test_main<4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
   test_main<64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
   test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
-  
+
   test_main<4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
   test_main<64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
   test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.0);
