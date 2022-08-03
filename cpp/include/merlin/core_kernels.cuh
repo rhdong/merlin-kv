@@ -579,11 +579,11 @@ __global__ void upsert_kernel_with_io(
         local_size = buckets_size[bkt_idx];
         if (rank == src_lane) {
           bucket->keys[key_pos] = insert_key;
+          bucket->metas[key_pos].val = (bucket->cur_meta)++;
           if (current_key == EMPTY_KEY) {
             buckets_size[bkt_idx]++;
             local_size++;
           }
-          bucket->metas[key_pos].val = ++(bucket->cur_meta);
         }
         local_size = g.shfl(local_size, src_lane);
         if (local_size >= bucket_max_size) {
@@ -599,7 +599,7 @@ __global__ void upsert_kernel_with_io(
       if (rank == (bucket->min_pos % TILE_SIZE)) {
         key_pos = bucket->min_pos;
         *(bucket->keys + key_pos) = insert_key;
-        bucket->metas[key_pos].val = ++(bucket->cur_meta);
+        bucket->metas[key_pos].val = (bucket->cur_meta)++;
       }
       refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
       key_pos = g.shfl(key_pos, 0);
@@ -741,7 +741,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
             local_size++;
           }
           *(vectors + key_idx) = (bucket->vectors + key_pos);
-          bucket->metas[key_pos].val = ++(bucket->cur_meta);
+          bucket->metas[key_pos].val = (bucket->cur_meta)++;
         }
         local_size = g.shfl(local_size, src_lane);
         if (local_size >= bucket_max_size) {
@@ -757,7 +757,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
         key_pos = bucket->min_pos;
         *(bucket->keys + key_pos) = insert_key;
         *(vectors + key_idx) = (bucket->vectors + key_pos);
-        bucket->metas[key_pos].val = ++(bucket->cur_meta);
+        bucket->metas[key_pos].val = (bucket->cur_meta)++;
       }
       refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
     }
@@ -826,6 +826,7 @@ __global__ void accum_kernel(
               local_size++;
             }
             *(vectors + key_idx) = (bucket->vectors + key_pos);
+            bucket->metas[key_pos].val = (bucket->cur_meta)++;
           }
         }
         local_size = g.shfl(local_size, src_lane);
@@ -841,7 +842,7 @@ __global__ void accum_kernel(
         key_pos = bucket->min_pos;
         *(bucket->keys + key_pos) = insert_key;
         *(vectors + key_idx) = (bucket->vectors + key_pos);
-        bucket->metas[key_pos].val = ++(bucket->cur_meta);
+        bucket->metas[key_pos].val = (bucket->cur_meta)++;
       }
       refresh_bucket_meta<K, V, M, DIM, TILE_SIZE>(g, bucket, bucket_max_size);
     }

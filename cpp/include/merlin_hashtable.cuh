@@ -195,9 +195,9 @@ class HashTable {
         } else {
           upsert_kernel<Key, Vector, M, DIM, TILE_SIZE>
               <<<grid_size, block_size, 0, stream>>>(
-                  table_, keys, d_dst, table_->buckets, table_->buckets_size,
-                  table_->bucket_max_size, table_->buckets_num, d_src_offset,
-                  N);
+                  table_, keys, d_dst, metas, table_->buckets,
+                  table_->buckets_size, table_->bucket_max_size,
+                  table_->buckets_num, d_src_offset, N);
         }
       }
 

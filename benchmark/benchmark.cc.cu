@@ -239,7 +239,6 @@ void print_title() {
 }
 
 int main() {
-
   cout << "On pure HBM mode: " << endl;
   print_title();
   test_main<4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.50);
@@ -253,7 +252,6 @@ int main() {
   test_main<16>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.00);
   cout << endl;
 
-
   cout << "On HBM+HMEM hybrid mode: " << endl;
   print_title();
   test_main<64>(1024 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.50);
@@ -263,7 +261,6 @@ int main() {
   test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
   test_main<128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.00);
   cout << endl;
-
 
   return 0;
 }
