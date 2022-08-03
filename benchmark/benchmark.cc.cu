@@ -35,6 +35,7 @@
 using std::cout;
 using std::endl;
 using std::fixed;
+using std::setfill;
 using std::setprecision;
 using std::setw;
 
@@ -178,8 +179,8 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   std::cout << "|" << rep(4) << DIM << " "
             << "|" << rep(9) << key_num_per_op << " "
             << "|" << rep(8) << fixed << setprecision(2) << load_factor << " "
-            << "|" << rep(4) << setw(3) << std::fill(' ') << hbm4values << " "
-            << "|" << rep(6) << setw(3) << std::fill(' ') << hmem4values << " "
+            << "|" << rep(4) << setw(3) << setfill(' ') << hbm4values << " "
+            << "|" << rep(6) << setw(3) << setfill(' ') << hmem4values << " "
             << "|" << rep(19) << fixed << setprecision(3) << insert_tput << " "
             << "|" << rep(8) << fixed << setprecision(3) << find_tput << " |"
             << endl;
