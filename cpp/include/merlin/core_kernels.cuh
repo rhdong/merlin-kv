@@ -127,14 +127,15 @@ void create_table(Table<K, V, M, DIM> **table, size_t init_size = 134217728,
                   size_t max_hbm_for_vectors = 0, size_t bucket_max_size = 128,
                   size_t tile_size = 32, bool primary = true,
                   size_t bytes_per_slice = kDefaultBytesPerSlice) {
-  std::cout << "[merlin-kv] requested configuration: \n"
-            << "\tinit_size = " << init_size << std::endl
-            << "\tmax_size = " << max_size << std::endl
-            << "\tmax_hbm_for_vectors = " << max_hbm_for_vectors << std::endl
-            << "\tbucket_max_size = " << bucket_max_size << std::endl
-            << "\ttile_size = " << tile_size << std::endl
-            << "\tprimary = " << primary << std::endl
-            << "\tbytes_per_slice = " << bytes_per_slice << std::endl;
+  //  std::cout << "[merlin-kv] requested configuration: \n"
+  //            << "\tinit_size = " << init_size << std::endl
+  //            << "\tmax_size = " << max_size << std::endl
+  //            << "\tmax_hbm_for_vectors = " << max_hbm_for_vectors <<
+  //            std::endl
+  //            << "\tbucket_max_size = " << bucket_max_size << std::endl
+  //            << "\ttile_size = " << tile_size << std::endl
+  //            << "\tprimary = " << primary << std::endl
+  //            << "\tbytes_per_slice = " << bytes_per_slice << std::endl;
   CUDA_CHECK(cudaMallocManaged((void **)table, sizeof(Table<K, V, M, DIM>)));
   CUDA_CHECK(cudaMemset(*table, 0, sizeof(Table<K, V, M, DIM>)));
   (*table)->bucket_max_size = bucket_max_size;
@@ -147,9 +148,10 @@ void create_table(Table<K, V, M, DIM> **table, size_t init_size = 134217728,
   while ((*table)->buckets_num * (*table)->bucket_max_size < init_size) {
     (*table)->buckets_num *= 2;
   }
-  std::cout << "[merlin-kv] requested capacity=" << init_size
-            << ", real capacity="
-            << (*table)->buckets_num * (*table)->bucket_max_size << std::endl;
+  //  std::cout << "[merlin-kv] requested capacity=" << init_size
+  //            << ", real capacity="
+  //            << (*table)->buckets_num * (*table)->bucket_max_size <<
+  //            std::endl;
   (*table)->capacity = (*table)->buckets_num * (*table)->bucket_max_size;
   (*table)->max_hbm_for_vectors = max_hbm_for_vectors;
   (*table)->remaining_hbm_for_vectors = max_hbm_for_vectors;
