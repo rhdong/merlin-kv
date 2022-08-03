@@ -211,7 +211,7 @@ int main() {
        << "| HBM(GB) "
        << "| HMEM(GB) "
        << "| insert_or_assign(G-KV/s) "
-       << "| find(G-KV/s) |" << ndl;
+       << "| find(G-KV/s) |" << endl;
   cout << "|----:"
        //<< "| keys_num_per_op "
        << "|----------------:"
@@ -229,12 +229,12 @@ int main() {
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
   test_main<uint64_t, uint64_t, 4>(64 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
 
-  if(free / (1 >> 30) >= 16 ) {
+  if(free / (1 << 30) >= 16 ) {
     test_main<uint64_t, uint64_t, 64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 0.75);
     test_main<uint64_t, uint64_t, 64>(128 * 1024 * 1024UL, 1024 * 1024UL, 16, 1.0);
   }
 
-  if(free / (1 >> 30) >= 56 ) {
+  if(free / (1 << 30) >= 56 ) {
     test_main<uint64_t, uint64_t, 128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 0.75);
     test_main<uint64_t, uint64_t, 128>(512 * 1024 * 1024UL, 1024 * 1024UL, 56, 1.0);
   }
