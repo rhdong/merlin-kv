@@ -662,6 +662,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
             local_size++;
           }
           *(vectors + key_idx) = (bucket->vectors + key_pos);
+          bucket->metas[key_pos].val = metas[key_idx];
         }
         local_size = g.shfl(local_size, src_lane);
         if (local_size >= bucket_max_size) {
@@ -740,6 +741,7 @@ __global__ void upsert_kernel(const Table<K, V, M, DIM> *__restrict table,
             local_size++;
           }
           *(vectors + key_idx) = (bucket->vectors + key_pos);
+          bucket->metas[key_pos].val = ++(bucket->cur_meta);
         }
         local_size = g.shfl(local_size, src_lane);
         if (local_size >= bucket_max_size) {
