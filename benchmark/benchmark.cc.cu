@@ -32,12 +32,12 @@
 #include "merlin/optimizers.cuh"
 #include "merlin_hashtable.cuh"
 
-using std::cout = cout;
-using std::endl = endl;
-using std::setw = setw;
-using std::fill = fill;
-using std::fixed = fixed;
-using std::setprecision = setp;
+using std::cout;
+using std::endl;
+using std::setw;
+using std::fill;
+using std::fixed;
+using std::setprecision;
 
 uint64_t getTimestamp() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -185,8 +185,8 @@ int test_main(size_t init_capacity = 64 * 1024 * 1024UL,
             << "|" << rep(4) << setw(3) << fill(' ') << max_hbm_for_vectors
             << " "
             << "|" << rep(6) << setw(3) << fill(' ') << hmem_for_vectors << " "
-            << "|" << rep(19) << fixed << setp(3) << insert_thruput << " "
-            << "|" << rep(8) << fixed << setp(3) << find_thruput << " |"
+            << "|" << rep(19) << fixed << setprecision(3) << insert_thruput << " "
+            << "|" << rep(8) << fixed << setprecision(3) << find_thruput << " |"
             << endl;
   //|  dim | keys_num_per_op | load_factor | HBM(GB) | HMEM(GB) |
   // insert_or_assign(G-KV/s) | find(G-KV/s) |
