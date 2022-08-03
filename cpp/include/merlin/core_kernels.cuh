@@ -1045,6 +1045,7 @@ __global__ void remove_kernel(const Table<K, V, M, DIM> *__restrict table,
           if (local_found) {
             atomicAdd(count, 1);
             *(buckets->keys + key_pos) = EMPTY_KEY;
+            buckets_size[bkt_idx]--;
             empty_pos = key_pos;
             for (int i = 1; i < bucket_max_size; i++) {
               key_idx = (key_pos + i) & bucket_max_size;
