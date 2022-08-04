@@ -10,7 +10,7 @@
 
 typedef float V;
 
-constexpr int DIM = 128;
+constexpr int DIM = 64;
 struct Vector {
   V values[DIM];
 };
