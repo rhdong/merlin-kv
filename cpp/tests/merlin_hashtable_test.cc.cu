@@ -68,11 +68,11 @@ struct ValueArray {
   V value[DIM];
 };
 
-constexpr uint64_t INIT_SIZE = 64 * 1024 * 1024UL;
+constexpr uint64_t INIT_SIZE = 512 * 1024 * 1024UL;
 constexpr uint64_t MAX_SIZE = INIT_SIZE;
 constexpr uint64_t KEY_NUM = 1 * 1024 * 1024UL;
 constexpr uint64_t TEST_TIMES = 0;
-constexpr uint64_t DIM = 4;
+constexpr uint64_t DIM = 128;
 constexpr float target_load_factor = 1.0;
 
 template <class K, class M>
@@ -170,6 +170,7 @@ int test_main() {
         diff_insert_or_assign.count() * 1000, diff_find.count() * 1000,
         cur_load_factor);
     start += KEY_NUM;
+    if (start > 2 * KEY_NUM) break;
   }
   uint64_t total_size = 0;
   for (int i = 0; i < TEST_TIMES; i++) {

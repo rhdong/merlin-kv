@@ -282,12 +282,8 @@ __global__ void write_kernel(const V *__restrict src, V **__restrict dst,
     int dim_index = t % DIM;
 
     if (dst[vec_index] != nullptr) {
-      if (src_offset != nullptr) {
-        (*(dst[vec_index])).value[dim_index] =
-            src[src_offset[vec_index]].value[dim_index];
-      } else {
-        (*(dst[vec_index])).value[dim_index] = src[vec_index].value[dim_index];
-      }
+      (*(dst[vec_index])).value[dim_index] =
+          src[src_offset[vec_index]].value[dim_index];
     }
   }
 }
