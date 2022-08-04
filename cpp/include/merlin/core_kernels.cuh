@@ -45,7 +45,7 @@ __global__ void release_locks(M *__restrict mutex, size_t start, size_t end) {
 }
 
 /* 2GB per slice by default.*/
-constexpr size_t kDefaultBytesPerSlice = (2ul << 30);
+constexpr size_t kDefaultBytesPerSlice = (8ul << 30);
 
 /* Initialize the buckets with index from start to end. */
 template <class K, class V, class M, size_t DIM>
