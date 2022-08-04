@@ -67,7 +67,7 @@ struct Vector {
  *  - Support dynamic rehashing
  *  - Support SSD/NVMe device as part of storage
  */
-template <class Key, class V, class M, size_t DIM, unsigned int TILE_SIZE = 32>
+template <class Key, class V, class M, size_t DIM, unsigned int TILE_SIZE = 8>
 class HashTable {
  public:
   using key_type = Key;
