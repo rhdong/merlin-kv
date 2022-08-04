@@ -182,8 +182,8 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
       init_capacity * DIM * sizeof(float) / (1024 * 1024 * 1024);
   hmem4values = hmem4values < hbm4values ? 0 : (hmem4values - hbm4values);
   float insert_tput =
-      key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024.0);
-  float find_tput = key_num_per_op / diff_find.count() / (1024 * 1024.0);
+      key_num_per_op / diff_insert_or_assign.count() / (1024 * 1024 * 1024.0);
+  float find_tput = key_num_per_op / diff_find.count() / (1024 * 1024 * 1024.0);
 
   cout << "|" << rep(1) << setw(3) << setfill(' ') << DIM << " "
        << "|" << rep(1) << setw(11) << setfill(' ') << init_capacity << " "
@@ -219,8 +219,8 @@ void print_title() {
        << "| load_factor "
        << "| HBM(GB) "
        << "| HMEM(GB) "
-       << "| insert_or_assign(M-KV/s) "
-       << "| find(M-KV/s) |" << endl;
+       << "| insert_or_assign(G-KV/s) "
+       << "| find(G-KV/s) |" << endl;
   cout << "|----:"
        //<< "| capacity "
        << "|------------:"
