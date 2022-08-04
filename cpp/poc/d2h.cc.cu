@@ -68,41 +68,6 @@ __global__ void create_fake_ptr(const Vector *__restrict dst,
   }
 }
 
-template <class K, class V, class M, size_t DIM, uint32_t TILE_SIZE = 8>
-__global__ void upsert_kernel(const K *__restrict keys, size_t N) {
-  size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-  for (size_t t = tid; t < N; t += blockDim.x * gridDim.x) {
-    auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
-    int rank = g.thread_rank();
-
-    int key_pos = -1;
-    bool found_or_empty = false;
-    const size_t bucket_max_size = 128;
-    size_t key_idx = t / TILE_SIZE;
-    K insert_key = keys[key_idx];
-    K hashed_key = insert_key;  // Murmur3HashDevice(insert_key);
-    size_t bkt_idx = hashed_key & (524288 - 1);
-    size_t start_idx = hashed_key & (bucket_max_size - 1);
-
-    Bucket<K, V, M, DIM> *bucket = table->buckets + bkt_idx;
-
-#pragma unroll
-    for (uint32_t tile_offset = 0; tile_offset < bucket_max_size;
-         tile_offset += TILE_SIZE) {
-      size_t key_offset = (start_idx + tile_offset + rank) % bucket_max_size;
-      K current_key = *(bucket->keys + key_offset);
-      auto const found_or_empty_vote =
-          g.ballot(current_key == EMPTY_KEY || insert_key == current_key);
-      if (found_or_empty_vote) {
-        found_or_empty = true;
-        key_pos = (start_idx + tile_offset + __ffs(found_or_empty_vote) - 1) &
-                  bucket_max_size;
-        break;
-      }
-    }
-  }
-}
 int main() {
   constexpr int KEY_NUM = 1024 * 1024;
   constexpr int INIT_SIZE = KEY_NUM * 32;
