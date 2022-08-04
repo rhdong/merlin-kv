@@ -71,7 +71,7 @@ __global__ void create_fake_ptr(const Vector *__restrict dst,
 
 int main() {
   constexpr int KEY_NUM = 1024 * 1024;
-  constexpr int INIT_SIZE = KEY_NUM * 512;
+  constexpr int INIT_SIZE = KEY_NUM * 256;
   constexpr int N = KEY_NUM * DIM;
   constexpr int TEST_TIMES = 1;
   constexpr size_t vectors_size = INIT_SIZE * sizeof(Vector);
