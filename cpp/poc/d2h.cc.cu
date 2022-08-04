@@ -6,6 +6,7 @@
 #include <random>
 #include <thread>
 #include <unordered_set>
+#include <set>
 
 typedef float V;
 
@@ -15,7 +16,7 @@ struct Vector {
 };
 
 void create_random_offset(int *offset, int num, int range) {
-  std::unordered_set<int> numbers;
+  std::set<int> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
   std::uniform_int_distribution<int> distr;
