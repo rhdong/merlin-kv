@@ -158,7 +158,6 @@ class HashTable {
     }
 
     if (is_pure_hbm_mode()) {
-      std::cout << "is_pure_hbm_mode" << std::endl;
       const size_t block_size = 128;
       const size_t N = len * TILE_SIZE;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
@@ -176,7 +175,6 @@ class HashTable {
                 table_->buckets_num, N);
       }
     } else {
-      std::cout << "not is_pure_hbm_mode" << std::endl;
       Vector **d_dst = nullptr;
       int *d_src_offset = nullptr;
       CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector *), stream));
