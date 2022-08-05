@@ -16,6 +16,10 @@
 
 #pragma once
 
+#include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+
 #include <typeindex>
 
 #include "tensorflow/core/framework/bounds_check.h"
@@ -117,16 +121,52 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
   void get(const K* d_keys, ValueType<V>* d_vals, bool* d_status, size_t len,
            const ValueType<V>* d_def_val, bool is_full_size_default,
            cudaStream_t stream) const override {
-    table_->find(d_keys, (V*)d_vals, d_status, len, (const V*)d_def_val,
-                 is_full_size_default, stream);
+    if (is_full_size_default) {
+      CUDA_CHECK(cudaMemcpy((void*)d_vals, (void*)d_def_val,
+                            sizeof(ValueArray<V, DIM>) * len,
+                            cudaMemcpyDefault));
+
+    } else {
+      const size_t N = len;
+      thrust::device_ptr<ValueArray<V, DIM>> d_vals_ptr(
+          reinterpret_cast<ValueArray<V, DIM>*>(d_vals));
+      thrust::device_ptr<const ValueArray<V, DIM>> d_def_val_ptr(
+          reinterpret_cast<const ValueArray<V, DIM>*>(d_def_val));
+
+#if THRUST_VERSION >= 101600
+      auto policy = thrust::cuda::par_nosync.on(stream);
+#else
+      auto policy = thrust::cuda::par.on(stream);
+#endif
+      thrust::fill(policy, d_vals_ptr, d_vals_ptr + N, *d_def_val_ptr);
+    }
+
+    table_->find(d_keys, (V*)d_vals, d_status, len, nullptr, stream);
   }
 
   void get(const K* d_keys, ValueType<V>* d_vals, M* d_metas, bool* d_status,
            size_t len, const ValueType<V>* d_def_val, bool is_full_size_default,
            cudaStream_t stream) const override {
-    cudaMemset(d_vals, 0, len * sizeof(V) * DIM);
-    table_->find(d_keys, (V*)d_vals, d_metas, d_status, len,
-                 (const V*)d_def_val, is_full_size_default, stream);
+    if (is_full_size_default) {
+      CUDA_CHECK(cudaMemcpy((void*)d_vals, (void*)d_def_val,
+                            sizeof(ValueArray<V, DIM>) * len,
+                            cudaMemcpyDefault));
+
+    } else {
+      const size_t N = len;
+      thrust::device_ptr<ValueArray<V, DIM>> d_vals_ptr(
+          reinterpret_cast<ValueArray<V, DIM>*>(d_vals));
+      thrust::device_ptr<const ValueArray<V, DIM>> d_def_val_ptr(
+          reinterpret_cast<const ValueArray<V, DIM>*>(d_def_val));
+
+#if THRUST_VERSION >= 101600
+      auto policy = thrust::cuda::par_nosync.on(stream);
+#else
+      auto policy = thrust::cuda::par.on(stream);
+#endif
+      thrust::fill(policy, d_vals_ptr, d_vals_ptr + N, *d_def_val_ptr);
+    }
+    table_->find(d_keys, (V*)d_vals, d_status, len, d_metas, stream);
   }
 
   size_t get_size(cudaStream_t stream) const override {

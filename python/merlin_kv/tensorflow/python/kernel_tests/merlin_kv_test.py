@@ -19,10 +19,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import glob
 import itertools
-import math
-import time
+import random
 
 import numpy as np
 import os
@@ -1030,7 +1028,9 @@ class VariableTest(test.TestCase):
           while len(keys) < num:
             key = np.random.randint(min, max, size=1, dtype=np.int64)[0]
             hashed_key = Murmur3Hash(key)
-            if hashed_key % bucket_num == target_bucket:
+            global_idx = hashed_key % (bucket_num * default_buckets_size)
+            bkt_idx = int(global_idx / default_buckets_size)
+            if bkt_idx == target_bucket:
               keys.add(key)
           return list(keys)
 
@@ -1131,7 +1131,9 @@ class VariableTest(test.TestCase):
           while len(keys) < num:
             key = np.random.randint(min, max, size=1, dtype=np.int64)[0]
             hashed_key = Murmur3Hash(key)
-            if hashed_key % bucket_num == target_bucket:
+            global_idx = hashed_key % (bucket_num * default_buckets_size)
+            bkt_idx = int(global_idx / default_buckets_size)
+            if bkt_idx == target_bucket:
               keys.add(key)
           return list(keys)
 
@@ -1241,7 +1243,9 @@ class VariableTest(test.TestCase):
           while len(keys) < num:
             key = np.random.randint(min, max, size=1, dtype=np.int64)[0]
             hashed_key = Murmur3Hash(key)
-            if hashed_key % bucket_num == target_bucket:
+            global_idx = hashed_key % (bucket_num * default_buckets_size)
+            bkt_idx = int(global_idx / default_buckets_size)
+            if bkt_idx == target_bucket:
               keys.add(key)
           return list(keys)
 
@@ -1268,22 +1272,22 @@ class VariableTest(test.TestCase):
         test_values = constant_op.constant(raw_test_values, dtypes.float32)
 
         raw_test_metas = [i for i in range(test_meta_start, test_meta_end)]
-        # replace three new keys to lower metas, would not be inserted.
-        raw_test_metas[0] = 200
+        # replace four new keys to lower metas, would not be inserted.
+        raw_test_metas[0] = 20
         raw_test_metas[1] = 78
-        raw_test_metas[2] = 101
+        raw_test_metas[2] = 97
+        raw_test_metas[3] = 98
 
-        # replace three exist keys to lower metas, just refresh the meta for them.
+        # replace three exist keys to new metas, just refresh the meta for them.
         raw_test_metas[4] = 99
-        raw_test_metas[5] = 98
-        raw_test_metas[6] = 100
+        raw_test_metas[5] = 1010
+        raw_test_metas[6] = 1020
 
         test_metas = constant_op.constant(raw_test_metas, dtypes.int64)
-        test_expected_metas = [
-            0, 0, 0, raw_test_metas[3], 99, 98, 100, raw_test_metas[7]
-        ]
-        test_expected_values = [default_val, default_val, default_val
-                               ] + raw_test_values[3:]
+        test_expected_metas = [0, 0, 0, 0, 99, 1010, 1020, raw_test_metas[7]]
+        test_expected_values = [
+            default_val, default_val, default_val, default_val
+        ] + raw_test_values[4:]
 
         table = mkv.get_variable("y004" + str(allow_duplicated_keys),
                                  dtypes.int64,
@@ -1417,6 +1421,109 @@ class VariableTest(test.TestCase):
           print('\033[92m' +
                 "[Round {}] correct_rate={:.4f}".format(r, correct_rate) +
                 '\033[0m')
+
+  def test_merlin_kv_variable_remove_randomly_with_customized_metas(self):
+    test_times = 100
+    for i in range(test_times):
+      with self.session(use_gpu=test_util.is_gpu_available(),
+                        config=default_config):
+        DIM = 2
+        default_val = [0.1] * DIM
+        default_buckets_size = 128
+        key_num_for_base = default_buckets_size
+        key_num_for_remove = 83
+
+        def create_keys_in_one_bucket(
+            num=128,
+            min=0,
+            max=0x7FFFFFFFFFFFFFFF,
+            bucket_num=2,
+            target_bucket=0,
+        ):
+          keys = set()
+          while len(keys) < num:
+            key = np.random.randint(min, max, size=1, dtype=np.int64)[0]
+            hashed_key = Murmur3Hash(key)
+            global_idx = hashed_key % (bucket_num * default_buckets_size)
+            bkt_idx = int(global_idx / default_buckets_size)
+            if bkt_idx == target_bucket:
+              keys.add(key)
+          return list(keys)
+
+        raw_base_keys = create_keys_in_one_bucket(key_num_for_base,
+                                                  min=0,
+                                                  max=10000)
+        raw_removed_keys = set()
+        while len(raw_removed_keys) < key_num_for_remove:
+          raw_removed_keys.add(random.choice(raw_base_keys))
+        raw_removed_keys = list(raw_removed_keys)
+        key_num_for_remove = len(raw_removed_keys)
+        raw_remained_keys = [
+            i for i in raw_base_keys if i not in raw_removed_keys
+        ]
+
+        base_meta_start = 1000
+        base_keys = constant_op.constant(raw_base_keys, dtypes.int64)
+        base_values = constant_op.constant(
+            [[i * 0.00001] * DIM for i in raw_base_keys], dtypes.float32)
+        base_metas = constant_op.constant([i * 10 for i in raw_base_keys],
+                                          dtypes.int64)
+
+        removed_keys = constant_op.constant(raw_removed_keys, dtypes.int64)
+        remainded_keys = constant_op.constant(raw_remained_keys, dtypes.int64)
+
+        table = mkv.get_variable("yz003" + str(i),
+                                 dtypes.int64,
+                                 dtypes.float32,
+                                 dim=DIM,
+                                 init_size=256,
+                                 initializer=default_val)
+        self.assertAllEqual(0, self.evaluate(table.size()))
+
+        self.evaluate(table.upsert(base_keys, base_values, base_metas))
+        self.assertAllEqual(min(default_buckets_size, key_num_for_base),
+                            self.evaluate(table.size()))
+
+        # simulate upsert when the buckets are full.
+        self.evaluate(table.remove(removed_keys))
+        self.assertAllEqual(default_buckets_size - key_num_for_remove,
+                            self.evaluate(table.size()))
+
+        removed_values, removed_metas = table.lookup(removed_keys,
+                                                     return_metas=True)
+
+        removed_values_np = self.evaluate(removed_values)
+        removed_metas_np = self.evaluate(removed_metas)
+
+        expected_removed_values = np.array([default_val] *
+                                           key_num_for_remove).astype(
+                                               _type_converter(dtypes.float32))
+        expected_removed_metas = np.array([0] * key_num_for_remove).astype(
+            _type_converter(dtypes.int64))
+        self.assertAllCloseAccordingToType(expected_removed_values,
+                                           removed_values_np)
+        self.assertAllCloseAccordingToType(expected_removed_metas,
+                                           removed_metas_np)
+
+        remainded_values, remainded_metas = table.lookup(remainded_keys,
+                                                         return_metas=True)
+        remainded_values_np = self.evaluate(remainded_values)
+        remainded_metas_np = self.evaluate(remainded_metas)
+
+        expected_remainded_values = np.array([
+            [i * 0.00001] * DIM for i in raw_remained_keys
+        ]).astype(_type_converter(dtypes.float32))
+        expected_remainded_metas = np.array([i * 10 for i in raw_remained_keys
+                                            ]).astype(
+                                                _type_converter(dtypes.int64))
+
+        self.assertAllCloseAccordingToType(expected_remainded_values,
+                                           remainded_values_np)
+        self.assertAllCloseAccordingToType(expected_remainded_metas,
+                                           remainded_metas_np)
+
+        self.evaluate(table.clear())
+        del table
 
 
 if __name__ == "__main__":
