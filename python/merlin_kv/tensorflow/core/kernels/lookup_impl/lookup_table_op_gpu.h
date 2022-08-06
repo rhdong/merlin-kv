@@ -176,7 +176,7 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
   size_t get_capacity() const override { return table_->capacity(); }
 
   void remove(const K* d_keys, size_t len, cudaStream_t stream) override {
-    table_->erase(d_keys, len, stream);
+    table_->erase(len, d_keys, stream);
   }
 
   void clear(cudaStream_t stream) override { table_->clear(stream); }
