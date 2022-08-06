@@ -86,10 +86,14 @@ template <class K, class V, size_t DIM, class M = uint64_t>
 class TableWrapper final : public TableWrapperBase<K, V, M> {
  private:
   using Table = nv::merlin::HashTable<K, V, M, DIM>;
+  using TableOptions = nv::merlin::HashTableOptions;
 
  public:
   TableWrapper(size_t max_size) : max_size_(max_size) {
-    table_ = new Table(max_size);
+    options_.init_capacity = max_size;
+    options_.max_capacity = max_size;
+    table_ = new Table();
+    table_->init(options_);
   }
 
   ~TableWrapper() override { delete table_; }
@@ -184,6 +188,7 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
  private:
   size_t max_size_;
   Table* table_;
+  TableOptions options_;
 };
 
 #define CREATE_A_TABLE(DIM)                                   \
