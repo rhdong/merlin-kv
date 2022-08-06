@@ -113,7 +113,7 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
 
   void accum(const K* d_keys, const ValueType<V>* d_vals_or_deltas,
              const bool* d_exists, size_t len, cudaStream_t stream) override {
-    table_->accum_or_assign(len, d_keys, (const V*)d_vals_or_deltas, d_exists, nullptr
+    table_->accum_or_assign(len, d_keys, (const V*)d_vals_or_deltas, d_exists, nullptr,
                   stream);
   }
 
