@@ -96,26 +96,26 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
 
   void upsert(const K* d_keys, const ValueType<V>* d_vals, size_t len,
               bool allow_duplicated_keys, cudaStream_t stream) override {
-    table_->insert_or_assign(d_keys, (const V*)d_vals, nullptr, len,
-                             allow_duplicated_keys, stream);
+    table_->insert_or_assign(len, d_keys, (const V*)d_vals, nullptr,
+                             stream);
   }
 
   void upsert(const K* d_keys, const ValueType<V>* d_vals, const M* d_metas,
               size_t len, bool allow_duplicated_keys,
               cudaStream_t stream) override {
-    table_->insert_or_assign(d_keys, (const V*)d_vals, d_metas, len,
-                             allow_duplicated_keys, stream);
+    table_->insert_or_assign(len, d_keys, (const V*)d_vals, d_metas,
+                             stream);
   }
 
   void accum(const K* d_keys, const ValueType<V>* d_vals_or_deltas,
              const bool* d_exists, size_t len, cudaStream_t stream) override {
-    table_->accum(d_keys, (const V*)d_vals_or_deltas, d_exists, len, false,
+    table_->accum_or_assign(len, d_keys, (const V*)d_vals_or_deltas, d_exists, nullptr
                   stream);
   }
 
   void dump(K* d_key, ValueType<V>* d_val, const size_t offset,
             const size_t search_length, cudaStream_t stream) const override {
-    table_->dump(d_key, (V*)d_val, offset, search_length, stream);
+    table_->export_batch(search_length, 0, d_key, (V*)d_val, nullptr, stream);
   }
 
   void get(const K* d_keys, ValueType<V>* d_vals, bool* d_status, size_t len,
@@ -141,7 +141,7 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
       thrust::fill(policy, d_vals_ptr, d_vals_ptr + N, *d_def_val_ptr);
     }
 
-    table_->find(d_keys, (V*)d_vals, d_status, len, nullptr, stream);
+    table_->find(len, d_keys, (V*)d_vals, d_status, nullptr, stream);
   }
 
   void get(const K* d_keys, ValueType<V>* d_vals, M* d_metas, bool* d_status,
@@ -166,7 +166,7 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
 #endif
       thrust::fill(policy, d_vals_ptr, d_vals_ptr + N, *d_def_val_ptr);
     }
-    table_->find(d_keys, (V*)d_vals, d_status, len, d_metas, stream);
+    table_->find(len, d_keys, (V*)d_vals, d_status, d_metas, stream);
   }
 
   size_t get_size(cudaStream_t stream) const override {
