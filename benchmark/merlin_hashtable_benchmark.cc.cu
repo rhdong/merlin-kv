@@ -179,6 +179,8 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
     start += key_num_per_op;
   }
 
+  std::cout << "real load_factor" = << table->load_factor(stream) << std::endl;
+
   size_t hmem4values =
       init_capacity * DIM * sizeof(float) / (1024 * 1024 * 1024);
   hmem4values = hmem4values < hbm4values ? 0 : (hmem4values - hbm4values);
