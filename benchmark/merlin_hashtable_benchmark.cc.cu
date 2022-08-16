@@ -144,7 +144,7 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
   CUDA_CHECK(cudaStreamCreate(&stream));
 
   K start = 0UL;
-  float cur_load_factor = table->load_factor();
+  float cur_load_factor = table->fast_load_factor();
   auto start_insert_or_assign = std::chrono::steady_clock::now();
   auto end_insert_or_assign = std::chrono::steady_clock::now();
   auto start_find = std::chrono::steady_clock::now();
