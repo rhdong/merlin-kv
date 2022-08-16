@@ -737,7 +737,7 @@ class HashTable {
     h_size = thrust::reduce(policy, size_ptr, size_ptr + N, (int)0,
                             thrust::plus<int>());
     CudaCheckError();
-    return static_cast<float>((h_size * 1.0) / (table_->max_bucket_size * N * 1.0));
+    return static_cast<float>((h_size * 1.0) / (options_->max_bucket_size * N * 1.0));
   };
 
  private:
