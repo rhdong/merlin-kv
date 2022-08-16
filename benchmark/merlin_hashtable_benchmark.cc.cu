@@ -174,7 +174,7 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
     end_find = std::chrono::steady_clock::now();
     diff_find = end_find - start_find;
 
-    cur_load_factor = table->load_factor(stream);
+    cur_load_factor = table->fast_load_factor(stream);
     CUDA_CHECK(cudaStreamSynchronize(stream));
     start += key_num_per_op;
   }

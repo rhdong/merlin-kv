@@ -662,6 +662,7 @@ class HashTable {
 #endif
     h_size = thrust::reduce(policy, size_ptr, size_ptr + N, (int)0,
                             thrust::plus<int>());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     CudaCheckError();
     return h_size;
   }
