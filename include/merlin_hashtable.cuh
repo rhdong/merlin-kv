@@ -211,7 +211,7 @@ class HashTable {
       return;
     }
 
-    if (!reach_max_capacity_ && load_factor() > options_.max_load_factor) {
+    if (!reach_max_capacity_ && fast_load_factor() > options_.max_load_factor) {
       reserve(capacity() * 2);
     }
 
