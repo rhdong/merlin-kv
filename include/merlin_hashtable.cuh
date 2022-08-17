@@ -20,9 +20,9 @@
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <mutex>
+#include <shared_mutex>
 #include <type_traits>
 #include "merlin/core_kernels.cuh"
-#include "merlin/initializers.cuh"
 #include "merlin/utils.cuh"
 
 namespace nv {
@@ -36,7 +36,7 @@ struct HashTableOptions {
   size_t max_capacity = 0;         ///< The maximum capacity.
   size_t max_hbm_for_vectors = 0;  ///< Max HBM allocated for vectors, by bytes.
   size_t max_bucket_size = 128;    ///< The length of each buckets.
-  float max_load_factor = 0.75f;   ///< The max load factor before rehashing.
+  float max_load_factor = 0.5f;    ///< The max load factor before rehashing.
   int block_size = 1024;           ///< default block size for CUDA kernels.
   int device_id = 0;               ///< the id of device.
   bool primary = true;             ///< no used, reserved for future.
@@ -156,6 +156,9 @@ class HashTable {
    */
  public:
   void init(const HashTableOptions options) {
+    if (initialized_) {
+      return;
+    }
     options_ = options;
     cudaDeviceProp deviceProp;
     CUDA_CHECK(cudaSetDevice(options_.device_id));
@@ -166,7 +169,7 @@ class HashTable {
         options_.max_hbm_for_vectors, options_.max_bucket_size,
         options_.primary);
     options_.block_size = SAFE_GET_BLOCK_SIZE(options_.block_size);
-    reach_max_capacity_ = false;
+    reach_max_capacity_ = (options_.init_capacity * 2 > options_.max_capacity);
     initialized_ = true;
     CudaCheckError();
   }
@@ -203,7 +206,7 @@ class HashTable {
       return;
     }
 
-    if (!reach_max_capacity_ && load_factor() > options_.max_load_factor) {
+    if (!reach_max_capacity_ && fast_load_factor() > options_.max_load_factor) {
       reserve(capacity() * 2);
     }
 
@@ -213,6 +216,12 @@ class HashTable {
       const size_t block_size = 128;
       const size_t N = n * TILE_SIZE;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
+
+      std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+      if (!reach_max_capacity_) {
+        lock.lock();
+      }
+
       if (metas == nullptr) {
         upsert_kernel_with_io<key_type, vector_type, meta_type, DIM, TILE_SIZE>
             <<<grid_size, block_size, 0, stream>>>(
@@ -229,6 +238,12 @@ class HashTable {
     } else {
       vector_type** d_dst = nullptr;
       int* d_src_offset = nullptr;
+
+      std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+      if (!reach_max_capacity_) {
+        lock.lock();
+      }
+
       CUDA_CHECK(cudaMallocAsync(&d_dst, n * sizeof(vector_type*), stream));
       CUDA_CHECK(cudaMemsetAsync(d_dst, 0, n * sizeof(vector_type*), stream));
       CUDA_CHECK(cudaMallocAsync(&d_src_offset, n * sizeof(int), stream));
@@ -326,11 +341,21 @@ class HashTable {
       return;
     }
 
+    if (!reach_max_capacity_ && fast_load_factor() > options_.max_load_factor) {
+      reserve(capacity() * 2);
+    }
+
     evict_strategy_check(metas);
 
     vector_type** dst;
     int* src_offset;
     bool* founds;
+
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
+
     CUDA_CHECK(cudaMallocAsync(&dst, n * sizeof(vector_type*), stream));
     CUDA_CHECK(cudaMemsetAsync(dst, 0, n * sizeof(vector_type*), stream));
     CUDA_CHECK(cudaMallocAsync(&src_offset, n * sizeof(int), stream));
@@ -414,6 +439,11 @@ class HashTable {
       return;
     }
 
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
+
     CUDA_CHECK(cudaMemsetAsync(founds, 0, n * sizeof(bool), stream));
     if (is_fast_mode()) {
       const size_t block_size = 128;
@@ -494,6 +524,12 @@ class HashTable {
     const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
     size_t count = 0;
     size_t* d_count;
+
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
+
     CUDA_CHECK(cudaMallocAsync(&d_count, sizeof(size_t), stream));
     CUDA_CHECK(cudaMemsetAsync(d_count, 0, sizeof(size_t), stream));
 
@@ -543,6 +579,11 @@ class HashTable {
     size_t* d_count;
     Pred h_pred;
 
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
+
     CUDA_CHECK(cudaMallocAsync(&d_count, sizeof(size_t), stream));
     CUDA_CHECK(cudaMemsetAsync(d_count, 0, sizeof(size_t), stream));
     CUDA_CHECK(cudaMemcpyFromSymbolAsync(&h_pred, pred, sizeof(Pred), 0,
@@ -567,6 +608,12 @@ class HashTable {
   void clear(cudaStream_t stream = 0) {
     const size_t N = table_->buckets_num * table_->bucket_max_size;
     const int grid_size = SAFE_GET_GRID_SIZE(N, options_.block_size);
+
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
+
     clear_kernel<key_type, vector_type, meta_type, DIM>
         <<<grid_size, options_.block_size, 0, stream>>>(table_, N);
 
@@ -599,6 +646,11 @@ class HashTable {
     size_type h_counter = 0;
     size_type* d_counter;
     size_type meta_size = (metas == nullptr ? 0 : sizeof(meta_type));
+
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
 
     CUDA_CHECK(cudaMallocAsync(&d_counter, sizeof(size_type), stream));
     CUDA_CHECK(cudaMemsetAsync(d_counter, 0, sizeof(size_type), stream));
@@ -646,6 +698,11 @@ class HashTable {
   size_type size(cudaStream_t stream = 0) const {
     size_t h_size = 0;
     size_type N = table_->buckets_num;
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
+
     thrust::device_ptr<int> size_ptr(table_->buckets_size);
 
 #if THRUST_VERSION >= 101600
@@ -688,38 +745,81 @@ class HashTable {
       return;
     }
 
-    while (capacity() < new_capacity &&
-           capacity() * 2 <= options_.max_capacity) {
-      std::cout << "[merlin-kv] load_factor=" << load_factor()
-                << ", reserve is being executed, "
-                << "the capacity will increase from " << capacity() << " to "
-                << capacity() * 2 << "." << std::endl;
-      double_capacity(&table_);
+    {
+      CUDA_CHECK(cudaDeviceSynchronize());
+      std::unique_lock<std::shared_mutex> lock(mutex_);
 
-      const size_t N = capacity() / 2;
-      const size_t grid_size = SAFE_GET_GRID_SIZE(N, options_.block_size);
-      rehash_kernel<key_type, vector_type, meta_type, DIM>
-          <<<grid_size, options_.block_size, 0, stream>>>(table_, N);
+      while (capacity() < new_capacity &&
+             capacity() * 2 <= options_.max_capacity) {
+        double_capacity(&table_);
+
+        const size_t block_size = 128;
+        const size_t N = TILE_SIZE * table_->buckets_num / 2;
+        const size_t grid_size = SAFE_GET_GRID_SIZE(N, block_size);
+        rehash_kernel_for_fast_mode<key_type, vector_type, meta_type, DIM,
+                                    TILE_SIZE>
+            <<<grid_size, block_size, 0, stream>>>(
+                table_, table_->buckets, table_->buckets_size,
+                table_->bucket_max_size, table_->buckets_num, N);
+      }
+      CUDA_CHECK(cudaDeviceSynchronize());
     }
+
     reach_max_capacity_ = (capacity() * 2 > options_.max_capacity);
     CudaCheckError();
   }
 
   /**
-   * @brief Returns the maximum number of elements the table.
+   * @brief Returns the average number of elements per slot, that is, size()
+   * divided by capacity().
    *
    * @param stream The CUDA stream used to execute the operation.
    *
-   * @return The table max size
+   * @return The load factor
    */
   float load_factor(cudaStream_t stream = 0) const {
     return static_cast<float>((size(stream) * 1.0) / (capacity() * 1.0));
-  };
+  }
 
  private:
-  bool is_fast_mode() const noexcept { return table_->is_pure_hbm; }
+  inline bool is_fast_mode() const noexcept { return table_->is_pure_hbm; }
 
-  void evict_strategy_check(const meta_type* metas) {
+  /**
+   * @brief Returns the load factor by sampling up to 1024 buckets.
+   *
+   * @notice For performance consideration, the returned load factor is
+   * inaccurate but within an error in 1% empirically which is enough for
+   * capacity control. But it's not suitable for end-users.
+   *
+   * @param stream The CUDA stream used to execute the operation.
+   *
+   * @return The evaluated load factor
+   */
+  inline float fast_load_factor(cudaStream_t stream = 0) const {
+    size_t h_size = 0;
+
+    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    if (!reach_max_capacity_) {
+      lock.lock();
+    }
+    size_type N = std::min(table_->buckets_num, 1024UL);
+
+    thrust::device_ptr<int> size_ptr(table_->buckets_size);
+
+#if THRUST_VERSION >= 101600
+    auto policy = thrust::cuda::par_nosync.on(stream);
+#else
+    auto policy = thrust::cuda::par.on(stream);
+#endif
+    h_size = thrust::reduce(policy, size_ptr, size_ptr + N, (int)0,
+                            thrust::plus<int>());
+
+    CudaCheckError();
+    return static_cast<float>((h_size * 1.0) /
+                              (options_.max_bucket_size * N * 1.0));
+  }
+
+  inline void evict_strategy_check(const meta_type* metas) {
     if (evict_strategy_ == EvictStrategy::kUndefined) {
       evict_strategy_ =
           metas == nullptr ? EvictStrategy::kLru : EvictStrategy::kCustomized;
@@ -745,6 +845,7 @@ class HashTable {
   bool reach_max_capacity_ = false;
   bool initialized_ = false;
   EvictStrategy evict_strategy_ = EvictStrategy::kUndefined;
+  mutable std::shared_mutex mutex_;
 };
 
 }  // namespace merlin
