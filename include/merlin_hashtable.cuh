@@ -217,7 +217,7 @@ class HashTable {
       const size_t N = n * TILE_SIZE;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
 
-      std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+      std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
       if (!reach_max_capacity_) {
         lock.lock();
       }
@@ -239,7 +239,7 @@ class HashTable {
       vector_type** d_dst = nullptr;
       int* d_src_offset = nullptr;
 
-      std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+      std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
       if (!reach_max_capacity_) {
         lock.lock();
       }
@@ -351,7 +351,7 @@ class HashTable {
     int* src_offset;
     bool* founds;
 
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -439,7 +439,7 @@ class HashTable {
       return;
     }
 
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -525,7 +525,7 @@ class HashTable {
     size_t count = 0;
     size_t* d_count;
 
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -579,7 +579,7 @@ class HashTable {
     size_t* d_count;
     Pred h_pred;
 
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -609,7 +609,7 @@ class HashTable {
     const size_t N = table_->buckets_num * table_->bucket_max_size;
     const int grid_size = SAFE_GET_GRID_SIZE(N, options_.block_size);
 
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -647,7 +647,7 @@ class HashTable {
     size_type* d_counter;
     size_type meta_size = (metas == nullptr ? 0 : sizeof(meta_type));
 
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -698,7 +698,7 @@ class HashTable {
   size_type size(cudaStream_t stream = 0) const {
     size_t h_size = 0;
     size_type N = table_->buckets_num;
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -747,7 +747,7 @@ class HashTable {
 
     {
       CUDA_CHECK(cudaDeviceSynchronize());
-      std::unique_lock<std::shared_mutex> lock(mutex_);
+      std::unique_lock<std::shared_timed_mutex> lock(mutex_);
 
       while (capacity() < new_capacity &&
              capacity() * 2 <= options_.max_capacity) {
@@ -798,7 +798,7 @@ class HashTable {
   inline float fast_load_factor(cudaStream_t stream = 0) const {
     size_t h_size = 0;
 
-    std::shared_lock<std::shared_mutex> lock(mutex_, std::defer_lock);
+    std::shared_lock<std::shared_timed_mutex> lock(mutex_, std::defer_lock);
     if (!reach_max_capacity_) {
       lock.lock();
     }
@@ -845,7 +845,7 @@ class HashTable {
   bool reach_max_capacity_ = false;
   bool initialized_ = false;
   EvictStrategy evict_strategy_ = EvictStrategy::kUndefined;
-  mutable std::shared_mutex mutex_;
+  mutable std::shared_timed_mutex mutex_;
 };
 
 }  // namespace merlin
