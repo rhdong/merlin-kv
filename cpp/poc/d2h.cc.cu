@@ -1,5 +1,4 @@
 #include <cuda_runtime.h>
-
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -15,7 +14,7 @@ struct Vector {
   V values[DIM];
 };
 
-void create_random_offset(int *offset, int num, int range) {
+void create_random_offset(int* offset, int num, int range) {
   std::set<int> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -31,8 +30,8 @@ void create_random_offset(int *offset, int num, int range) {
   }
 }
 
-__global__ void d2h_const_data(const Vector *__restrict src,
-                               Vector **__restrict dst, int N) {
+__global__ void d2h_const_data(const Vector* __restrict src,
+                               Vector** __restrict dst, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
@@ -44,7 +43,7 @@ __global__ void d2h_const_data(const Vector *__restrict src,
 }
 
 __global__ void d2h_hbm_data(
-    Vector *__restrict src, Vector **__restrict dst,
+    Vector* __restrict src, Vector** __restrict dst,
     int N) {  // dst is a set of Vector* in the pinned memory
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -59,13 +58,13 @@ __global__ void d2h_hbm_data(
   }
 }
 
-__global__ void create_fake_ptr(const Vector *__restrict dst,
-                                Vector **__restrict vectors, int *offset,
+__global__ void create_fake_ptr(const Vector* __restrict dst,
+                                Vector** __restrict vectors, int* offset,
                                 int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
-    vectors[tid] = (Vector *)((Vector *)dst + offset[tid]);
+    vectors[tid] = (Vector*)((Vector*)dst + offset[tid]);
   }
 }
 
@@ -79,19 +78,19 @@ int main() {
   int NUM_THREADS = 1024;
   int NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
 
-  int *h_offset;
-  int *d_offset;
+  int* h_offset;
+  int* d_offset;
 
   cudaMallocHost(&h_offset, sizeof(int) * KEY_NUM);
   cudaMalloc(&d_offset, sizeof(int) * KEY_NUM);
   cudaMemset(&h_offset, 0, sizeof(int) * KEY_NUM);
   cudaMemset(&d_offset, 0, sizeof(int) * KEY_NUM);
 
-  Vector *src;
-  Vector *dst;
-  Vector **dst_ptr;
+  Vector* src;
+  Vector* dst;
+  Vector** dst_ptr;
   cudaMalloc(&src, KEY_NUM * sizeof(Vector));
-  cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector *));
+  cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector*));
   cudaMallocHost(&dst, vectors_size);
 
   create_random_offset(h_offset, KEY_NUM, INIT_SIZE);

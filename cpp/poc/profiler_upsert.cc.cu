@@ -15,7 +15,7 @@ typedef uint64_t M;
 typedef float V;
 
 template <class K>
-void create_random_keys(K *h_keys, int KEY_NUM, K start = 0) {
+void create_random_keys(K* h_keys, int KEY_NUM, K start = 0) {
   std::unordered_set<K> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -32,7 +32,7 @@ void create_random_keys(K *h_keys, int KEY_NUM, K start = 0) {
 }
 
 template <class K>
-void create_continuous_keys(K *h_keys, int KEY_NUM, K start = 0) {
+void create_continuous_keys(K* h_keys, int KEY_NUM, K start = 0) {
   for (K i = 0; i < KEY_NUM; i++) {
     h_keys[i] = start + static_cast<K>(i);
   }
@@ -49,10 +49,10 @@ constexpr uint64_t EMPTY_META = std::numeric_limits<uint64_t>::min();
 
 template <class K>
 struct Bucket {
-  K *keys;         // HBM
-  Meta<M> *metas;  // HBM
-  V *cache;        // HBM(optional)
-  V *vectors;      // Pinned memory or HBM
+  K* keys;         // HBM
+  Meta<M>* metas;  // HBM
+  V* cache;        // HBM(optional)
+  V* vectors;      // Pinned memory or HBM
 
   /* For upsert_kernel without user specified metas
      recording the current meta, the cur_meta will
@@ -76,7 +76,7 @@ constexpr const size_t GRID_SIZE = ((N)-1) / BLOCK_SIZE + 1;
 constexpr int BUCKETS_NUM = INIT_SIZE / MAX_BUCKET_SIZE;
 constexpr int DIM = 4;
 
-__inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const &key) {
+__inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const& key) {
   uint64_t k = key;
   k ^= k >> 33;
   k *= UINT64_C(0xff51afd7ed558ccd);
@@ -87,11 +87,11 @@ __inline__ __device__ uint64_t Murmur3HashDevice(uint64_t const &key) {
 }
 
 template <class Key>
-__global__ void upsert_kernel(const Key *__restrict keys,
-                              const Bucket<K> *__restrict buckets,
-                              int *__restrict d_sizes, V **__restrict vectors,
-                              const V *__restrict values,
-                              int *__restrict src_offset, size_t N) {
+__global__ void upsert_kernel(const Key* __restrict keys,
+                              const Bucket<K>* __restrict buckets,
+                              int* __restrict d_sizes, V** __restrict vectors,
+                              const V* __restrict values,
+                              int* __restrict src_offset, size_t N) {
   size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
   int rank = g.thread_rank();
@@ -106,7 +106,7 @@ __global__ void upsert_kernel(const Key *__restrict keys,
 
     int src_lane;
 
-    const Bucket<Key> *bucket = buckets + bkt_idx;
+    const Bucket<Key>* bucket = buckets + bkt_idx;
 
     if (rank == 0 && src_offset != nullptr) {
       *(src_offset + key_idx) = key_idx;
@@ -150,17 +150,17 @@ __global__ void upsert_kernel(const Key *__restrict keys,
   }
 }
 int main() {
-  K *h_keys;
-  K *d_keys;
-  K *d_all_keys;
-  int *d_sizes;
-  V **vectors;
+  K* h_keys;
+  K* d_keys;
+  K* d_all_keys;
+  int* d_sizes;
+  V** vectors;
 
-  V *values;
+  V* values;
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));
   cudaMalloc(&d_keys, KEY_NUM * sizeof(K));
-  Bucket<K> *buckets;
+  Bucket<K>* buckets;
   cudaMallocManaged(&buckets, sizeof(Bucket<K>) * BUCKETS_NUM);
   cudaMalloc(&(d_all_keys), sizeof(K) * MAX_BUCKET_SIZE * BUCKETS_NUM);
   cudaMemset(d_all_keys, 0xFF, sizeof(K) * MAX_BUCKET_SIZE * BUCKETS_NUM);
@@ -174,8 +174,8 @@ int main() {
   cudaMalloc(&(d_sizes), sizeof(int) * BUCKETS_NUM);
   cudaMemset(d_sizes, 0, sizeof(int) * BUCKETS_NUM);
 
-  cudaMalloc(&(vectors), sizeof(V *) * KEY_NUM);
-  cudaMemset(vectors, 0, sizeof(V *) * KEY_NUM);
+  cudaMalloc(&(vectors), sizeof(V*) * KEY_NUM);
+  cudaMemset(vectors, 0, sizeof(V*) * KEY_NUM);
 
   create_random_keys<K>(h_keys, KEY_NUM, 0);
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);

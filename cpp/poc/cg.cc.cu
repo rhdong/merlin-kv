@@ -8,7 +8,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -42,11 +41,11 @@ constexpr uint64_t BUCKETS_NUM = INIT_SIZE / BUCKETS_SIZE;  // 1,048,576
 constexpr K EMPTY_KEY = (K)(0xFFFFFFFFFFFFFFFF);
 constexpr M MAX_META = (M)(0xFFFFFFFFFFFFFFFF);
 
-__global__ void upsert_cg(int N, int *keys_pos) {
+__global__ void upsert_cg(int N, int* keys_pos) {
   extern __shared__ unsigned char s[];
-  int *key_pos = (int *)s;
-  int *min_meta_pos = (int *)key_pos + 32;
-  uint64_t *min_meta = (uint64_t *)((int *)min_meta_pos + 32);
+  int* key_pos = (int*)s;
+  int* min_meta_pos = (int*)key_pos + 32;
+  uint64_t* min_meta = (uint64_t*)((int*)min_meta_pos + 32);
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   //   cg::thread_block wholeBlock = cg::this_thread_block();
   //   cg::thread_group bucket_tile =
@@ -82,7 +81,7 @@ int main() {
   int NUM_THREADS = 1024;
   int N = key_num * BUCKETS_SIZE;
   int NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
-  int *keys_pos;
+  int* keys_pos;
   int TIMES = 10;
   cudaMalloc(&keys_pos, N * sizeof(K));  // 8MB
 

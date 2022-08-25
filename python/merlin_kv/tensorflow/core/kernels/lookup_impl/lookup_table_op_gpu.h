@@ -19,9 +19,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
-
 #include <typeindex>
-
 #include "tensorflow/core/framework/bounds_check.h"
 #include "tensorflow/core/framework/lookup_interface.h"
 #include "tensorflow/core/framework/op_kernel.h"
@@ -89,9 +87,8 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
   using TableOptions = nv::merlin::HashTableOptions;
 
  public:
-  TableWrapper(size_t max_size) : max_size_(max_size) {
-    options_.init_capacity = max_size;
-    options_.max_capacity = max_size;
+  TableWrapper(nv::merlin::HashTableOptions options) {
+    options_ = options;
     table_ = new Table();
     table_->init(options_);
   }
@@ -100,21 +97,19 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
 
   void upsert(const K* d_keys, const ValueType<V>* d_vals, size_t len,
               bool allow_duplicated_keys, cudaStream_t stream) override {
-    table_->insert_or_assign(len, d_keys, (const V*)d_vals, nullptr,
-                             stream);
+    table_->insert_or_assign(len, d_keys, (const V*)d_vals, nullptr, stream);
   }
 
   void upsert(const K* d_keys, const ValueType<V>* d_vals, const M* d_metas,
               size_t len, bool allow_duplicated_keys,
               cudaStream_t stream) override {
-    table_->insert_or_assign(len, d_keys, (const V*)d_vals, d_metas,
-                             stream);
+    table_->insert_or_assign(len, d_keys, (const V*)d_vals, d_metas, stream);
   }
 
   void accum(const K* d_keys, const ValueType<V>* d_vals_or_deltas,
              const bool* d_exists, size_t len, cudaStream_t stream) override {
-    table_->accum_or_assign(len, d_keys, (const V*)d_vals_or_deltas, d_exists, nullptr,
-                  stream);
+    table_->accum_or_assign(len, d_keys, (const V*)d_vals_or_deltas, d_exists,
+                            nullptr, stream);
   }
 
   void dump(K* d_key, ValueType<V>* d_val, const size_t offset,
@@ -186,16 +181,15 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
   void clear(cudaStream_t stream) override { table_->clear(stream); }
 
  private:
-  size_t max_size_;
   Table* table_;
   TableOptions options_;
 };
 
-#define CREATE_A_TABLE(DIM)                                   \
-  do {                                                        \
-    if (runtime_dim == (DIM + 1)) {                           \
-      *pptable = new TableWrapper<K, V, (DIM + 1)>(max_size); \
-    };                                                        \
+#define CREATE_A_TABLE(DIM)                                  \
+  do {                                                       \
+    if (runtime_dim == (DIM + 1)) {                          \
+      *pptable = new TableWrapper<K, V, (DIM + 1)>(options); \
+    };                                                       \
   } while (0)
 
 #define CREATE_TABLE_PARTIAL_BRANCHES(PERIFX) \
@@ -222,26 +216,26 @@ class TableWrapper final : public TableWrapperBase<K, V, M> {
   CREATE_TABLE_PARTIAL_BRANCHES(CENTILE * 10 + DECTILE + 4);
 
 template <class K, class V, int centile, int dectile>
-void CreateTableImpl(TableWrapperBase<K, V>** pptable, size_t max_size,
-                     size_t runtime_dim) {
+void CreateTableImpl(TableWrapperBase<K, V>** pptable, size_t runtime_dim,
+                     nv::merlin::HashTableOptions options) {
   CREATE_TABLE_BRANCHES(centile, dectile);
 }
 
 #define DEFINE_CREATE_TABLE(ID, K, V, CENTILE, DECTILE)                      \
-  void CreateTable##ID(size_t max_size, size_t runtime_dim,                  \
-                       TableWrapperBase<K, V>** pptable) {                   \
-    CreateTableImpl<K, V, CENTILE, DECTILE>(pptable, max_size, runtime_dim); \
+  void CreateTable##ID(size_t runtime_dim, TableWrapperBase<K, V>** pptable, \
+                       nv::merlin::HashTableOptions options) {               \
+    CreateTableImpl<K, V, CENTILE, DECTILE>(pptable, runtime_dim, options);  \
   }
 
-#define DECLARE_CREATE_TABLE(K, V)                       \
-  void CreateTable0(size_t max_size, size_t runtime_dim, \
-                    TableWrapperBase<K, V>**);           \
-  void CreateTable1(size_t max_size, size_t runtime_dim, \
-                    TableWrapperBase<K, V>**);           \
-  void CreateTable2(size_t max_size, size_t runtime_dim, \
-                    TableWrapperBase<K, V>**);           \
-  void CreateTable3(size_t max_size, size_t runtime_dim, \
-                    TableWrapperBase<K, V>**);
+#define DECLARE_CREATE_TABLE(K, V)                                \
+  void CreateTable0(size_t runtime_dim, TableWrapperBase<K, V>**, \
+                    nv::merlin::HashTableOptions);                \
+  void CreateTable1(size_t runtime_dim, TableWrapperBase<K, V>**, \
+                    nv::merlin::HashTableOptions);                \
+  void CreateTable2(size_t runtime_dim, TableWrapperBase<K, V>**, \
+                    nv::merlin::HashTableOptions);                \
+  void CreateTable3(size_t runtime_dim, TableWrapperBase<K, V>**, \
+                    nv::merlin::HashTableOptions);
 
 DECLARE_CREATE_TABLE(int64, float);
 DECLARE_CREATE_TABLE(int64, Eigen::half);

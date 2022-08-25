@@ -19,9 +19,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
-
 #include <mutex>
-
 #include "merlin/core_kernels.cuh"
 #include "merlin/initializers.cuh"
 #include "merlin/utils.cuh"
@@ -96,7 +94,7 @@ class HashTable {
                      size_type max_hbm_for_vectors = 0,
                      float max_load_factor = 0.75,
                      size_type bucket_max_size = 128,
-                     const Initializer *initializer = nullptr,
+                     const Initializer* initializer = nullptr,
                      bool primary = true, int block_size = 1024)
       : init_size_(init_size),
         max_size_(max_size),
@@ -122,8 +120,8 @@ class HashTable {
    * @brief Frees the resources of the table and destroys the table object.
    */
   ~HashTable() { destroy_table<Key, Vector, M, DIM>(&table_); }
-  HashTable(const HashTable &) = delete;
-  HashTable &operator=(const HashTable &) = delete;
+  HashTable(const HashTable&) = delete;
+  HashTable& operator=(const HashTable&) = delete;
 
   /**
    * @brief Attempts to insert key-value-meta tuples into the table.
@@ -146,7 +144,7 @@ class HashTable {
    * has no duplicate keys, and the performance will be better.
    * @param stream The CUDA stream used to execute the operation.
    */
-  void insert_or_assign(const Key *keys, const V *vectors, const M *metas,
+  void insert_or_assign(const Key* keys, const V* vectors, const M* metas,
                         size_t len, bool allow_duplicated_keys = true,
                         cudaStream_t stream = 0) {
     if (len == 0) {
@@ -164,21 +162,21 @@ class HashTable {
       if (metas == nullptr) {
         upsert_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
             <<<grid_size, block_size, 0, stream>>>(
-                table_, keys, reinterpret_cast<const Vector *>(vectors),
+                table_, keys, reinterpret_cast<const Vector*>(vectors),
                 table_->buckets, table_->buckets_size, table_->bucket_max_size,
                 table_->buckets_num, N);
       } else {
         upsert_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
             <<<grid_size, block_size, 0, stream>>>(
-                table_, keys, reinterpret_cast<const Vector *>(vectors), metas,
+                table_, keys, reinterpret_cast<const Vector*>(vectors), metas,
                 table_->buckets, table_->buckets_size, table_->bucket_max_size,
                 table_->buckets_num, N);
       }
     } else {
-      Vector **d_dst = nullptr;
-      int *d_src_offset = nullptr;
-      CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector *), stream));
-      CUDA_CHECK(cudaMemsetAsync(d_dst, 0, len * sizeof(Vector *), stream));
+      Vector** d_dst = nullptr;
+      int* d_src_offset = nullptr;
+      CUDA_CHECK(cudaMallocAsync(&d_dst, len * sizeof(Vector*), stream));
+      CUDA_CHECK(cudaMemsetAsync(d_dst, 0, len * sizeof(Vector*), stream));
       CUDA_CHECK(cudaMallocAsync(&d_src_offset, len * sizeof(int), stream));
       CUDA_CHECK(cudaMemsetAsync(d_src_offset, 0, len * sizeof(int), stream));
       // Determine bucket insert locations.
@@ -203,12 +201,12 @@ class HashTable {
 
       {
         static_assert(
-            sizeof(V *) == sizeof(uint64_t),
+            sizeof(V*) == sizeof(uint64_t),
             "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
 
         const size_t N = len;
         thrust::device_ptr<uint64_t> d_dst_ptr(
-            reinterpret_cast<uint64_t *>(d_dst));
+            reinterpret_cast<uint64_t*>(d_dst));
         thrust::device_ptr<int> d_src_offset_ptr(d_src_offset);
 
 #if THRUST_VERSION >= 101600
@@ -225,7 +223,7 @@ class HashTable {
         const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
         write_kernel<Key, Vector, M, DIM>
             <<<grid_size, block_size_, 0, stream>>>(
-                reinterpret_cast<const Vector *>(vectors), d_dst, d_src_offset,
+                reinterpret_cast<const Vector*>(vectors), d_dst, d_src_offset,
                 N);
       }
 
@@ -262,18 +260,18 @@ class HashTable {
    *
    * @todo support accum with metas.
    */
-  void accum(const Key *keys, const V *vals_or_deltas, const bool *exists,
+  void accum(const Key* keys, const V* vals_or_deltas, const bool* exists,
              size_t len, bool allow_duplicated_keys = true,
              cudaStream_t stream = 0) {
     if (len == 0) {
       return;
     }
 
-    Vector **dst;
-    int *src_offset;
-    bool *found;
-    CUDA_CHECK(cudaMallocAsync(&dst, len * sizeof(Vector *), stream));
-    CUDA_CHECK(cudaMemsetAsync(dst, 0, len * sizeof(Vector *), stream));
+    Vector** dst;
+    int* src_offset;
+    bool* found;
+    CUDA_CHECK(cudaMallocAsync(&dst, len * sizeof(Vector*), stream));
+    CUDA_CHECK(cudaMemsetAsync(dst, 0, len * sizeof(Vector*), stream));
     CUDA_CHECK(cudaMallocAsync(&src_offset, len * sizeof(int), stream));
     CUDA_CHECK(cudaMemsetAsync(src_offset, 0, len * sizeof(int), stream));
     CUDA_CHECK(cudaMallocAsync(&found, len * sizeof(bool), stream));
@@ -290,11 +288,11 @@ class HashTable {
 
     if (!is_pure_hbm_mode()) {
       static_assert(
-          sizeof(V *) == sizeof(uint64_t),
+          sizeof(V*) == sizeof(uint64_t),
           "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
 
       const size_t N = len;
-      thrust::device_ptr<uint64_t> dst_ptr(reinterpret_cast<uint64_t *>(dst));
+      thrust::device_ptr<uint64_t> dst_ptr(reinterpret_cast<uint64_t*>(dst));
       thrust::device_ptr<int> src_offset_ptr(src_offset);
 
 #if THRUST_VERSION >= 101600
@@ -311,7 +309,7 @@ class HashTable {
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
       write_with_accum_kernel<Key, Vector, M, DIM>
           <<<grid_size, block_size_, 0, stream>>>(
-              reinterpret_cast<const Vector *>(vals_or_deltas), dst, exists,
+              reinterpret_cast<const Vector*>(vals_or_deltas), dst, exists,
               found, src_offset, N);
     }
 
@@ -344,8 +342,8 @@ class HashTable {
    * default vectors with @p keys.
    * @param stream The CUDA stream used to execute the operation.
    */
-  void find(const Key *keys, V *vectors, bool *found, size_t len,
-            M *metas = nullptr, cudaStream_t stream = 0) const {
+  void find(const Key* keys, V* vectors, bool* found, size_t len,
+            M* metas = nullptr, cudaStream_t stream = 0) const {
     if (len == 0) {
       return;
     }
@@ -358,14 +356,14 @@ class HashTable {
 
       lookup_kernel_with_io<Key, Vector, M, DIM, TILE_SIZE>
           <<<grid_size, block_size, 0, stream>>>(
-              table_, keys, reinterpret_cast<Vector *>(vectors), metas, found,
+              table_, keys, reinterpret_cast<Vector*>(vectors), metas, found,
               table_->buckets, table_->buckets_size, table_->bucket_max_size,
               table_->buckets_num, N);
     } else {
-      Vector **src;
-      int *dst_offset = nullptr;
-      CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
-      CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
+      Vector** src;
+      int* dst_offset = nullptr;
+      CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector*), stream));
+      CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector*), stream));
       CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
       CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
 
@@ -377,18 +375,18 @@ class HashTable {
 
         lookup_kernel<Key, Vector, M, DIM, TILE_SIZE>
             <<<grid_size, block_size, 0, stream>>>(
-                table_, keys, reinterpret_cast<Vector **>(src), metas, found,
+                table_, keys, reinterpret_cast<Vector**>(src), metas, found,
                 table_->buckets, table_->buckets_size, table_->bucket_max_size,
                 table_->buckets_num, dst_offset, N);
       }
 
       {
         static_assert(
-            sizeof(V *) == sizeof(uint64_t),
+            sizeof(V*) == sizeof(uint64_t),
             "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
 
         const size_t N = len;
-        thrust::device_ptr<uint64_t> src_ptr(reinterpret_cast<uint64_t *>(src));
+        thrust::device_ptr<uint64_t> src_ptr(reinterpret_cast<uint64_t*>(src));
         thrust::device_ptr<int> dst_offset_ptr(dst_offset);
 
 #if THRUST_VERSION >= 101600
@@ -404,7 +402,7 @@ class HashTable {
         const size_t N = len * DIM;
         const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
         read_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-            src, reinterpret_cast<Vector *>(vectors), found, dst_offset, N);
+            src, reinterpret_cast<Vector*>(vectors), found, dst_offset, N);
       }
 
       CUDA_CHECK(cudaFreeAsync(src, stream));
@@ -426,16 +424,16 @@ class HashTable {
    * @param len Number of Key-Value pairs to be searched.
    * @param stream The CUDA stream used to execute the operation.
    */
-  void find(const Key *keys, V *vectors, size_type len,
+  void find(const Key* keys, V* vectors, size_type len,
             cudaStream_t stream = 0) const {
     if (len == 0) {
       return;
     }
 
-    Vector **src;
-    int *dst_offset;
-    CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector *), stream));
-    CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector *), stream));
+    Vector** src;
+    int* dst_offset;
+    CUDA_CHECK(cudaMallocAsync(&src, len * sizeof(Vector*), stream));
+    CUDA_CHECK(cudaMemsetAsync(src, 0, len * sizeof(Vector*), stream));
     CUDA_CHECK(cudaMallocAsync(&dst_offset, len * sizeof(int), stream));
     CUDA_CHECK(cudaMemsetAsync(dst_offset, 0, len * sizeof(int), stream));
 
@@ -451,11 +449,11 @@ class HashTable {
 
     {
       static_assert(
-          sizeof(V *) == sizeof(uint64_t),
+          sizeof(V*) == sizeof(uint64_t),
           "[merlin-kv] illegal conversation. V pointer must be 64 bit!");
 
       const size_t N = len;
-      thrust::device_ptr<uint64_t> src_ptr(reinterpret_cast<uint64_t *>(src));
+      thrust::device_ptr<uint64_t> src_ptr(reinterpret_cast<uint64_t*>(src));
       thrust::device_ptr<int> dst_offset_ptr(dst_offset);
 
 #if THRUST_VERSION >= 101600
@@ -472,7 +470,7 @@ class HashTable {
       const size_t N = len * DIM;
       const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
       read_kernel<Key, Vector, M, DIM><<<grid_size, block_size_, 0, stream>>>(
-          src, reinterpret_cast<Vector *>(vectors), dst_offset, N);
+          src, reinterpret_cast<Vector*>(vectors), dst_offset, N);
     }
 
     CUDA_CHECK(cudaFreeAsync(src, stream));
@@ -554,12 +552,12 @@ class HashTable {
    *
    * @return Number of elements removed
    */
-  size_t erase(const Key *keys, size_type len, cudaStream_t stream = 0) {
+  size_t erase(const Key* keys, size_type len, cudaStream_t stream = 0) {
     const size_t block_size = 128;
     const size_t N = len * TILE_SIZE;
     const int grid_size = SAFE_GET_GRID_SIZE(N, block_size);
     size_t count = 0;
-    size_t *d_count;
+    size_t* d_count;
     CUDA_CHECK(cudaMallocAsync(&d_count, sizeof(size_t), stream));
     CUDA_CHECK(cudaMemsetAsync(d_count, 0, sizeof(size_t), stream));
 
@@ -585,11 +583,11 @@ class HashTable {
    *
    * @return Number of elements removed
    */
-  size_t erase_if(Pred &pred, cudaStream_t stream = 0) {
+  size_t erase_if(Pred& pred, cudaStream_t stream = 0) {
     const size_t N = table_->buckets_num * table_->bucket_max_size;
     const int grid_size = SAFE_GET_GRID_SIZE(N, block_size_);
     size_t count = 0;
-    size_t *d_count;
+    size_t* d_count;
     Pred h_pred;
 
     CUDA_CHECK(cudaMallocAsync(&d_count, sizeof(size_t), stream));
@@ -622,10 +620,10 @@ class HashTable {
    * @throw CudaException If the K-V size is too large for GPU shared memory.
    * Reducing the @ p max_num is needed at this time.
    */
-  size_type dump(Key *keys, V *vectors, const size_type offset,
+  size_type dump(Key* keys, V* vectors, const size_type offset,
                  const size_type max_num, cudaStream_t stream = 0) const {
     size_type h_counter = 0;
-    size_type *d_counter;
+    size_type* d_counter;
 
     CUDA_CHECK(cudaMallocAsync(&d_counter, sizeof(size_type), stream));
     CUDA_CHECK(cudaMemsetAsync(d_counter, 0, sizeof(size_type), stream));
@@ -641,7 +639,7 @@ class HashTable {
 
     dump_kernel<Key, Vector, M, DIM>
         <<<grid_size, block_size, shared_size, stream>>>(
-            table_, keys, reinterpret_cast<Vector *>(vectors), offset, max_num,
+            table_, keys, reinterpret_cast<Vector*>(vectors), offset, max_num,
             d_counter);
 
     CUDA_CHECK(cudaMemcpyAsync(&h_counter, d_counter, sizeof(size_t),
@@ -669,10 +667,10 @@ class HashTable {
    * @throw CudaException If the K-V size is too large for GPU shared memory.
    * Reducing the @ p max_num is needed at this time.
    */
-  size_type dump(Key *keys, V *vectors, M *metas, const size_type offset,
+  size_type dump(Key* keys, V* vectors, M* metas, const size_type offset,
                  const size_type max_num, cudaStream_t stream = 0) const {
     size_type h_counter = 0;
-    size_type *d_counter;
+    size_type* d_counter;
 
     CUDA_CHECK(cudaMallocAsync(&d_counter, sizeof(size_type), stream));
     CUDA_CHECK(cudaMemsetAsync(d_counter, 0, sizeof(size_type), stream));
@@ -688,7 +686,7 @@ class HashTable {
 
     dump_kernel<Key, Vector, M, DIM>
         <<<grid_size, block_size, shared_size, stream>>>(
-            table_, keys, reinterpret_cast<Vector *>(vectors), metas, offset,
+            table_, keys, reinterpret_cast<Vector*>(vectors), metas, offset,
             max_num, d_counter);
     CUDA_CHECK(cudaMemcpyAsync(&h_counter, d_counter, sizeof(size_t),
                                cudaMemcpyDeviceToHost, stream));
@@ -793,7 +791,7 @@ class HashTable {
   std::shared_ptr<Initializer> initializer_;
   const bool primary_;
   size_t shared_mem_size_;
-  Table *table_;
+  Table* table_;
   //   std::mutex mtx_;
 };
 

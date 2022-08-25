@@ -26,7 +26,6 @@
  */
 #include <assert.h>
 #include <cuda.h>
-
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -327,7 +326,7 @@ int main() {
   CUDA_CHECK(cuCtxSetCurrent(ctx));
   CUDA_CHECK(cuCtxGetDevice(&dev));
 
-  std::vector<std::vector<ReportingDuration> > durations(2);
+  std::vector<std::vector<ReportingDuration>> durations(2);
 
   CUDA_CHECK(cuMemGetInfo(&free, NULL));
 
@@ -368,7 +367,7 @@ int main() {
       std::cout << std::left << std::setw(15) << std::setfill(' ')
                 << std::setprecision(2) << std::fixed
                 << std::chrono::duration_cast<
-                       std::chrono::duration<float, std::micro> >(
+                       std::chrono::duration<float, std::micro>>(
                        durations[j][i])
                        .count()
                 << "| ";

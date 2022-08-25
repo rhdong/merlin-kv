@@ -1,5 +1,4 @@
 #include <cooperative_groups.h>
-
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -19,7 +18,7 @@ struct Vector {
 };
 constexpr int VECTOR_SIZE = sizeof(Vector);
 
-void create_random_offset(int *offset, int num, int range) {
+void create_random_offset(int* offset, int num, int range) {
   std::unordered_set<int> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -35,7 +34,7 @@ void create_random_offset(int *offset, int num, int range) {
   }
 }
 
-void create_random_offset_ordered(int *offset, int num, int range) {
+void create_random_offset_ordered(int* offset, int num, int range) {
   std::set<int> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -51,8 +50,8 @@ void create_random_offset_ordered(int *offset, int num, int range) {
   }
 }
 
-__global__ void d2h_const_data(const Vector *__restrict src,
-                               Vector **__restrict dst, int N) {
+__global__ void d2h_const_data(const Vector* __restrict src,
+                               Vector** __restrict dst, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
@@ -60,13 +59,13 @@ __global__ void d2h_const_data(const Vector *__restrict src,
     int dim_index = tid % DIM;
 
     //     (*(dst[vec_index])).values[dim_index] = 0.1f;
-    V *vector_addr = (V *)*(dst + vec_index);
+    V* vector_addr = (V*)*(dst + vec_index);
     *(vector_addr + dim_index) = 0.1f;
   }
 }
 
 __global__ void d2h_hbm_data_all(
-    Vector *__restrict src, Vector **__restrict dst,
+    Vector* __restrict src, Vector** __restrict dst,
     int N) {  // dst is a set of Vector* in the pinned memory
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -84,7 +83,7 @@ __global__ void d2h_hbm_data_all(
 #define TILE_SIZE 8
 
 __global__ void d2h_hbm_data(
-    Vector *__restrict src, Vector **__restrict dst,
+    Vector* __restrict src, Vector** __restrict dst,
     int N) {  // dst is a set of Vector* in the pinned memory
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   auto g = cg::tiled_partition<TILE_SIZE>(cg::this_thread_block());
@@ -103,7 +102,7 @@ __global__ void d2h_hbm_data(
 }
 
 __global__ void d2h_hbm_data_with_random_src(
-    const Vector *__restrict src, Vector **__restrict dst, int *src_idx,
+    const Vector* __restrict src, Vector** __restrict dst, int* src_idx,
     int N) {  // dst is a set of Vector* in the pinned memory
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -116,13 +115,13 @@ __global__ void d2h_hbm_data_with_random_src(
   }
 }
 
-__global__ void create_fake_ptr(const Vector *__restrict dst,
-                                Vector **__restrict vectors, int *offset,
+__global__ void create_fake_ptr(const Vector* __restrict dst,
+                                Vector** __restrict vectors, int* offset,
                                 int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
-    vectors[tid] = (Vector *)((Vector *)dst + offset[tid]);
+    vectors[tid] = (Vector*)((Vector*)dst + offset[tid]);
   }
 }
 
@@ -141,11 +140,11 @@ int main() {
   int NUM_THREADS = 1024;
   int NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
 
-  int *h_offset;
-  int *d_offset;
+  int* h_offset;
+  int* d_offset;
 
-  int *h_src_idx;
-  int *d_src_idx;
+  int* h_src_idx;
+  int* d_src_idx;
 
   cudaMallocHost(&h_offset, sizeof(int) * KEY_NUM);
   cudaMalloc(&d_offset, sizeof(int) * KEY_NUM);
@@ -157,11 +156,11 @@ int main() {
   cudaMemset(&h_src_idx, 0, sizeof(int) * KEY_NUM);
   cudaMemset(&d_src_idx, 0, sizeof(int) * KEY_NUM);
 
-  Vector *src;
-  Vector *dst;
-  Vector **dst_ptr;
+  Vector* src;
+  Vector* dst;
+  Vector** dst_ptr;
   cudaMalloc(&src, KEY_NUM * sizeof(Vector));
-  cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector *));
+  cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector*));
   cudaMallocHost(&dst, vectors_size,
                  cudaHostAllocMapped | cudaHostAllocWriteCombined);
 

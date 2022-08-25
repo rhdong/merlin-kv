@@ -320,6 +320,12 @@ REGISTER_OP("MerlinKVOfTensors")
     .Attr("value_dtype: type")
     .Attr("value_shape: shape = {}")
     .Attr("init_size: int = 0")
+    .Attr("max_capacity: int = 0")
+    .Attr("max_hbm_for_vectors: int = 0")
+    .Attr("max_bucket_size: int = 128")
+    .Attr("max_load_factor: float = 0.5")
+    .Attr("device_id: int = 0")
+    .Attr("evict_strategy: int = 0")
     .SetIsStateful()
     .SetShapeFn([](InferenceContext* c) {
       PartialTensorShape value_p;

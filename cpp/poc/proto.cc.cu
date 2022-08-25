@@ -8,7 +8,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -47,40 +46,40 @@ constexpr M MAX_META = (M)(0xFFFFFFFFFFFFFFFF);
     cerr << "CUDA error calling \"" #call "\", code is " << err << endl; \
   }
 
-__inline__ __device__ uint64_t atomicCAS(uint64_t *address, uint64_t compare,
+__inline__ __device__ uint64_t atomicCAS(uint64_t* address, uint64_t compare,
                                          uint64_t val) {
-  return (uint64_t)atomicCAS((unsigned long long *)address,
+  return (uint64_t)atomicCAS((unsigned long long*)address,
                              (unsigned long long)compare,
                              (unsigned long long)val);
 }
 
-__inline__ __device__ uint64_t atomicMax(uint64_t *address, uint64_t val) {
-  return (uint64_t)atomicMax((unsigned long long *)address,
+__inline__ __device__ uint64_t atomicMax(uint64_t* address, uint64_t val) {
+  return (uint64_t)atomicMax((unsigned long long*)address,
                              (unsigned long long)val);
 }
 
-__inline__ __device__ uint64_t atomicMin(uint64_t *address, uint64_t val) {
-  return (uint64_t)atomicMin((unsigned long long *)address,
+__inline__ __device__ uint64_t atomicMin(uint64_t* address, uint64_t val) {
+  return (uint64_t)atomicMin((unsigned long long*)address,
                              (unsigned long long)val);
 }
 
-__inline__ __device__ uint64_t atomicExch(uint64_t *address, uint64_t val) {
-  return (uint64_t)atomicExch((unsigned long long *)address,
+__inline__ __device__ uint64_t atomicExch(uint64_t* address, uint64_t val) {
+  return (uint64_t)atomicExch((unsigned long long*)address,
                               (unsigned long long)val);
 }
 
-__inline__ __device__ int64_t atomicExch(int64_t *address, int64_t val) {
-  return (int64_t)atomicExch((unsigned long long *)address,
+__inline__ __device__ int64_t atomicExch(int64_t* address, int64_t val) {
+  return (int64_t)atomicExch((unsigned long long*)address,
                              (unsigned long long)val);
 }
 
-__inline__ __device__ int64_t atomicAdd(int64_t *address, const int64_t val) {
-  return (int64_t)atomicAdd((unsigned long long *)address, val);
+__inline__ __device__ int64_t atomicAdd(int64_t* address, const int64_t val) {
+  return (int64_t)atomicAdd((unsigned long long*)address, val);
 }
 
-__inline__ __device__ uint64_t atomicAdd(uint64_t *address,
+__inline__ __device__ uint64_t atomicAdd(uint64_t* address,
                                          const uint64_t val) {
-  return (uint64_t)atomicAdd((unsigned long long *)address, val);
+  return (uint64_t)atomicAdd((unsigned long long*)address, val);
 }
 
 uint64_t getTimestamp() {
@@ -88,7 +87,7 @@ uint64_t getTimestamp() {
       .count();
 }
 
-inline void __cudaCheckError(const char *file, const int line) {
+inline void __cudaCheckError(const char* file, const int line) {
 #ifdef CUDA_ERROR_CHECK
   cudaError err = cudaGetLastError();
   if (cudaSuccess != err) {
@@ -124,7 +123,7 @@ class FlexMemory {
   ~FlexMemory() {
     if (!ptr_) cudaFree(ptr_);
   }
-  V *get(size_t size = 0) {
+  V* get(size_t size = 0) {
     if (size > size_) {
       cudaFree(ptr_);
       size_ = size;
@@ -135,7 +134,7 @@ class FlexMemory {
   }
 
  private:
-  T *ptr_;
+  T* ptr_;
   size_t size_;
 };
 
@@ -150,23 +149,23 @@ struct __align__(sizeof(M)) Meta {
 };
 
 struct Bucket {
-  K *keys;          // Device memory
-  Meta *metas;      // Device memory
-  Vector *cache;    // Device memory
-  Vector *vectors;  // Pinned host memory
-  Vector *slots1;   // Pinned host memory
-  Vector *slots2;   // Pinned host memory
+  K* keys;          // Device memory
+  Meta* metas;      // Device memory
+  Vector* cache;    // Device memory
+  Vector* vectors;  // Pinned host memory
+  Vector* slots1;   // Pinned host memory
+  Vector* slots2;   // Pinned host memory
   M min_meta;
   int min_pos;
   int size;
 };
 
 struct __align__(32) Table {
-  Bucket *buckets;
-  unsigned int *locks;
+  Bucket* buckets;
+  unsigned int* locks;
 };
 
-inline uint64_t Murmur3Hash(const uint64_t &key) {
+inline uint64_t Murmur3Hash(const uint64_t& key) {
   uint64_t k = key;
   k ^= k >> 33;
   k *= UINT64_C(0xff51afd7ed558ccd);
@@ -176,13 +175,12 @@ inline uint64_t Murmur3Hash(const uint64_t &key) {
   return k;
 }
 
-void create_table(Table **table) {
-  cudaMallocManaged((void **)table, sizeof(Table));
-  cudaMallocManaged((void **)&((*table)->buckets),
-                    BUCKETS_NUM * sizeof(Bucket));
+void create_table(Table** table) {
+  cudaMallocManaged((void**)table, sizeof(Table));
+  cudaMallocManaged((void**)&((*table)->buckets), BUCKETS_NUM * sizeof(Bucket));
   cudaMemset(((*table)->buckets), 0, BUCKETS_NUM * sizeof(Bucket));
 
-  cudaMalloc((void **)&((*table)->locks), BUCKETS_NUM * sizeof(int));
+  cudaMalloc((void**)&((*table)->locks), BUCKETS_NUM * sizeof(int));
   cudaMemset((*table)->locks, 0, BUCKETS_NUM * sizeof(unsigned int));
 
   for (int i = 0; i < BUCKETS_NUM; i++) {
@@ -195,7 +193,7 @@ void create_table(Table **table) {
   }
 }
 
-void destroy_table(Table **table) {
+void destroy_table(Table** table) {
   for (int i = 0; i < BUCKETS_NUM; i++) {
     cudaFree((*table)->buckets[i].keys);
     cudaFree((*table)->buckets[i].metas);
@@ -207,7 +205,7 @@ void destroy_table(Table **table) {
   cudaFree(*table);
 }
 
-__global__ void write(const Vector *__restrict src, Vector **__restrict dst,
+__global__ void write(const Vector* __restrict src, Vector** __restrict dst,
                       int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -221,7 +219,7 @@ __global__ void write(const Vector *__restrict src, Vector **__restrict dst,
   }
 }
 
-__global__ void read(Vector **__restrict src, Vector *__restrict dst, int N) {
+__global__ void read(Vector** __restrict src, Vector* __restrict dst, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
@@ -233,7 +231,7 @@ __global__ void read(Vector **__restrict src, Vector *__restrict dst, int N) {
   }
 }
 
-__inline__ __device__ void refresh_bucket_meta(Bucket *bucket,
+__inline__ __device__ void refresh_bucket_meta(Bucket* bucket,
                                                const uint64_t buckets_size) {
   M min_val = MAX_META;
   int min_pos = 0;
@@ -250,8 +248,8 @@ __inline__ __device__ void refresh_bucket_meta(Bucket *bucket,
   atomicExch(&(bucket->min_meta), min_val);
 }
 
-__global__ void upsert(const Table *__restrict table, const K *__restrict keys,
-                       const M *__restrict metas, Vector **__restrict vectors,
+__global__ void upsert(const Table* __restrict table, const K* __restrict keys,
+                       const M* __restrict metas, Vector** __restrict vectors,
                        int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   int key_pos = -1;
@@ -265,7 +263,7 @@ __global__ void upsert(const Table *__restrict table, const K *__restrict keys,
 
     while (!release_lock) {
       if (atomicExch(&(table->locks[bkt_idx]), 1u) == 0u) {
-        Bucket *bucket = &(table->buckets[bkt_idx]);
+        Bucket* bucket = &(table->buckets[bkt_idx]);
         for (int i = 0; i < BUCKETS_SIZE; i++) {
           if (bucket->keys[i] == insert_key) {
             found = true;
@@ -303,8 +301,8 @@ __global__ void upsert(const Table *__restrict table, const K *__restrict keys,
           }
           atomicExch(&(bucket->min_pos), tmp_min_pos);
           atomicExch(&(bucket->min_meta), tmp_min_val);
-          atomicCAS((uint64_t *)&(vectors[tid]), (uint64_t)(nullptr),
-                    (uint64_t)((Vector *)(bucket->vectors) + key_pos));
+          atomicCAS((uint64_t*)&(vectors[tid]), (uint64_t)(nullptr),
+                    (uint64_t)((Vector*)(bucket->vectors) + key_pos));
         }
         release_lock = true;
         atomicExch(&(table->locks[bkt_idx]), 0u);
@@ -313,11 +311,11 @@ __global__ void upsert(const Table *__restrict table, const K *__restrict keys,
   }
 }
 
-__global__ void upsert_fast(const Table *__restrict table,
-                            const K *__restrict keys, const M *__restrict metas,
-                            Vector **__restrict vectors,
-                            const bool *__restrict d_found,
-                            const int *__restrict offset, int N) {
+__global__ void upsert_fast(const Table* __restrict table,
+                            const K* __restrict keys, const M* __restrict metas,
+                            Vector** __restrict vectors,
+                            const bool* __restrict d_found,
+                            const int* __restrict offset, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   int key_pos = -1;
 
@@ -331,7 +329,7 @@ __global__ void upsert_fast(const Table *__restrict table,
 
     while (!release_lock) {
       if (atomicExch(&(table->locks[bkt_idx]), 1u) == 0u) {
-        Bucket *bucket = &(table->buckets[bkt_idx]);
+        Bucket* bucket = &(table->buckets[bkt_idx]);
         if (found) {
           key_pos = offset[key_idx];
         } else {
@@ -353,8 +351,8 @@ __global__ void upsert_fast(const Table *__restrict table,
           atomicExch(&(bucket->metas[key_pos].val), metas[key_idx]);
 
           refresh_bucket_meta(bucket, BUCKETS_SIZE);
-          atomicCAS((uint64_t *)&(vectors[tid]), (uint64_t)(nullptr),
-                    (uint64_t)((Vector *)(bucket->vectors) + key_pos));
+          atomicCAS((uint64_t*)&(vectors[tid]), (uint64_t)(nullptr),
+                    (uint64_t)((Vector*)(bucket->vectors) + key_pos));
         }
         release_lock = true;
         atomicExch(&(table->locks[bkt_idx]), 0u);
@@ -367,18 +365,18 @@ constexpr uint64_t NUM_THREADS = 1024;
 
 constexpr uint64_t NUM_THREADS_UPSERT = 256;
 
-__global__ void upsert_cg_sharedmem(const Table *__restrict table,
-                                    const K *__restrict keys,
-                                    const M *__restrict metas,
-                                    Vector **__restrict vectors, int N) {
+__global__ void upsert_cg_sharedmem(const Table* __restrict table,
+                                    const K* __restrict keys,
+                                    const M* __restrict metas,
+                                    Vector** __restrict vectors, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   int key_pos = -1;
   bool found = false;
   bool empty = false;
 
   extern __shared__ unsigned char s[];
-  K *bucket_keys = (K *)s;
-  M *bucket_metas = (M *)s;
+  K* bucket_keys = (K*)s;
+  M* bucket_metas = (M*)s;
 
   if (tid < N) {
     int key_idx = tid / (BUCKETS_SIZE / 32);
@@ -393,7 +391,7 @@ __global__ void upsert_cg_sharedmem(const Table *__restrict table,
         release_lock = true;
       }
     }
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
     printf("insert 222\n");
 // read to shared memory
@@ -465,17 +463,17 @@ __global__ void upsert_cg_sharedmem(const Table *__restrict table,
   }
 }
 
-__global__ void upsert_cg(const Table *__restrict table,
-                          const K *__restrict keys, const M *__restrict metas,
-                          Vector **__restrict vectors, int N) {
+__global__ void upsert_cg(const Table* __restrict table,
+                          const K* __restrict keys, const M* __restrict metas,
+                          Vector** __restrict vectors, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   int key_pos = -1;
   bool found = false;
   bool empty = false;
   extern __shared__ unsigned char s[];
-  K *bucket_keys = (K *)s;
-  M *bucket_metas =
-      (M *)(bucket_keys + NUM_THREADS_UPSERT * (BUCKETS_SIZE / 32));
+  K* bucket_keys = (K*)s;
+  M* bucket_metas =
+      (M*)(bucket_keys + NUM_THREADS_UPSERT * (BUCKETS_SIZE / 32));
 
   int i;
 
@@ -492,7 +490,7 @@ __global__ void upsert_cg(const Table *__restrict table,
         release_lock = true;
       }
     }
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
 // read to shared memory
 #pragma unroll
@@ -552,8 +550,8 @@ __global__ void upsert_cg(const Table *__restrict table,
   }
 }
 
-__global__ void lookup(const Table *__restrict table, const K *__restrict keys,
-                       Vector **__restrict vectors, bool *__restrict found,
+__global__ void lookup(const Table* __restrict table, const K* __restrict keys,
+                       Vector** __restrict vectors, bool* __restrict found,
                        int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (tid < N) {
@@ -561,21 +559,21 @@ __global__ void lookup(const Table *__restrict table, const K *__restrict keys,
     int key_pos = tid % BUCKETS_SIZE;
     int bkt_idx = keys[key_idx] % BUCKETS_NUM;
     K target_key = keys[key_idx];
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
     if (bucket->keys[key_pos] == target_key) {
-      vectors[key_idx] = (Vector *)&(bucket->vectors[key_pos]);
+      vectors[key_idx] = (Vector*)&(bucket->vectors[key_pos]);
       found[key_idx] = true;
     }
   }
 }
 
-__global__ void lookup_fast(const Table *__restrict table,
-                            const K *__restrict keys,
-                            Vector **__restrict vectors, bool *__restrict found,
+__global__ void lookup_fast(const Table* __restrict table,
+                            const K* __restrict keys,
+                            Vector** __restrict vectors, bool* __restrict found,
                             int N) {
   extern __shared__ unsigned char s[];
-  int *possible_key_pos = (int *)s;
+  int* possible_key_pos = (int*)s;
   //   int possible_key_pos[4];
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (tid < N) {
@@ -583,7 +581,7 @@ __global__ void lookup_fast(const Table *__restrict table,
     int key_pos = tid % BUCKETS_SIZE;
     int bkt_idx = keys[key_idx] % BUCKETS_NUM;
     K target_key = keys[key_idx];
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
     //     unsigned int pre =
     //         __ballot_sync(0xFFFFFFFF, int(bucket->keys[key_pos] ==
@@ -595,7 +593,7 @@ __global__ void lookup_fast(const Table *__restrict table,
     if (tid % BUCKETS_SIZE == 0) {
       for (int i = 0; i < BUCKETS_SIZE; i++) {
         if (possible_key_pos[i] > 0) {
-          vectors[key_idx] = (Vector *)&(bucket->vectors[i]);
+          vectors[key_idx] = (Vector*)&(bucket->vectors[i]);
           found[key_idx] = true;
           break;
         }
@@ -604,45 +602,45 @@ __global__ void lookup_fast(const Table *__restrict table,
   }
 }
 
-__global__ void lookup(const Table *__restrict table, const K *__restrict keys,
-                       M *__restrict metas, Vector **__restrict vectors,
-                       bool *__restrict found, int N) {
+__global__ void lookup(const Table* __restrict table, const K* __restrict keys,
+                       M* __restrict metas, Vector** __restrict vectors,
+                       bool* __restrict found, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (tid < N) {
     int key_idx = tid / BUCKETS_SIZE;
     int key_pos = tid % BUCKETS_SIZE;
     int bkt_idx = keys[key_idx] % BUCKETS_NUM;
     K target_key = keys[key_idx];
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
     if (bucket->keys[key_pos] == target_key) {
       metas[key_idx] = bucket->metas[key_pos].val;
-      vectors[key_idx] = (Vector *)&(bucket->vectors[key_pos]);
+      vectors[key_idx] = (Vector*)&(bucket->vectors[key_pos]);
       found[key_idx] = true;
     }
   }
 }
 
-__global__ void lookup_for_upsert(const Table *__restrict table,
-                                  const K *__restrict keys,
-                                  bool *__restrict found,
-                                  int *__restrict offset, int N) {
+__global__ void lookup_for_upsert(const Table* __restrict table,
+                                  const K* __restrict keys,
+                                  bool* __restrict found,
+                                  int* __restrict offset, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (tid < N) {
     int key_idx = tid / BUCKETS_SIZE;
     int key_pos = tid % BUCKETS_SIZE;
     int bkt_idx = keys[key_idx] % BUCKETS_NUM;
     K target_key = keys[key_idx];
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
     if (bucket->keys[key_pos] == target_key) {
       found[key_idx] = true;
-      atomicExch((int *)&(offset[key_idx]), key_pos);
+      atomicExch((int*)&(offset[key_idx]), key_pos);
     }
   }
 }
 
-__global__ void remove(const Table *__restrict table, const K *__restrict keys,
+__global__ void remove(const Table* __restrict table, const K* __restrict keys,
                        int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (tid < N) {
@@ -650,54 +648,54 @@ __global__ void remove(const Table *__restrict table, const K *__restrict keys,
     int key_pos = tid % BUCKETS_SIZE;
     int bkt_idx = keys[key_idx] % BUCKETS_NUM;
     K target_key = keys[key_idx];
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
-    K old_key = atomicCAS((K *)&bucket->keys[key_pos], target_key, EMPTY_KEY);
+    K old_key = atomicCAS((K*)&bucket->keys[key_pos], target_key, EMPTY_KEY);
     if (old_key == target_key) {
-      atomicExch((K *)&(bucket->metas[key_pos].val), MAX_META);
-      atomicDec((unsigned int *)&(bucket->size), BUCKETS_SIZE);
+      atomicExch((K*)&(bucket->metas[key_pos].val), MAX_META);
+      atomicDec((unsigned int*)&(bucket->size), BUCKETS_SIZE);
     }
   }
 }
 
-__global__ void clear(Table *table, int N) {
+__global__ void clear(Table* table, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (tid < N) {
     int key_idx = tid % BUCKETS_SIZE;
     int bkt_idx = tid / BUCKETS_SIZE;
-    Bucket *bucket = &(table->buckets[bkt_idx]);
-    atomicExch((K *)&(bucket->keys[key_idx]), EMPTY_KEY);
-    atomicExch((K *)&(bucket->metas[key_idx].val), MAX_META);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
+    atomicExch((K*)&(bucket->keys[key_idx]), EMPTY_KEY);
+    atomicExch((K*)&(bucket->metas[key_idx].val), MAX_META);
     if (key_idx == 0) atomicExch(&(bucket->size), 0);
   }
 }
 
-__global__ void size(Table *table, size_t *size, int N) {
+__global__ void size(Table* table, size_t* size, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
     for (int i = 0; i < BUCKETS_SIZE; i++) {
       if (table->buckets[tid].keys[i] != EMPTY_KEY) {
-        atomicAdd((unsigned long long int *)&(size[tid]), 1);
+        atomicAdd((unsigned long long int*)&(size[tid]), 1);
       }
     }
   }
 }
 
-__global__ void size_new(Table *table, size_t *size, int N) {
+__global__ void size_new(Table* table, size_t* size, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (tid < N) {
-    atomicAdd((unsigned long long int *)(size), table->buckets[tid].size);
+    atomicAdd((unsigned long long int*)(size), table->buckets[tid].size);
   }
 }
 
-__global__ void dump(const Table *table, K *d_key, Vector *d_val,
+__global__ void dump(const Table* table, K* d_key, Vector* d_val,
                      const size_t offset, const size_t search_length,
-                     size_t *d_dump_counter) {
+                     size_t* d_dump_counter) {
   extern __shared__ unsigned char s[];
-  K *smem = (K *)s;
-  K *block_result_key = smem;
-  Vector *block_result_val = (Vector *)&(smem[blockDim.x]);
+  K* smem = (K*)s;
+  K* block_result_key = smem;
+  Vector* block_result_val = (Vector*)&(smem[blockDim.x]);
   __shared__ size_t block_acc;
   __shared__ size_t global_acc;
 
@@ -711,7 +709,7 @@ __global__ void dump(const Table *table, K *d_key, Vector *d_val,
   if (tid < search_length) {
     int bkt_idx = (tid + offset) / BUCKETS_SIZE;
     int key_idx = (tid + offset) % BUCKETS_SIZE;
-    Bucket *bucket = &(table->buckets[bkt_idx]);
+    Bucket* bucket = &(table->buckets[bkt_idx]);
 
     if (bucket->keys[key_idx] != EMPTY_KEY) {
       size_t local_index = atomicAdd(&block_acc, 1);
@@ -740,7 +738,7 @@ __global__ void dump(const Table *table, K *d_key, Vector *d_val,
 }
 
 template <typename T>
-void create_random_keys_test(T *h_keys, M *h_metas, int KEY_NUM) {
+void create_random_keys_test(T* h_keys, M* h_metas, int KEY_NUM) {
   std::unordered_set<T> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -765,7 +763,7 @@ void create_random_keys_test(T *h_keys, M *h_metas, int KEY_NUM) {
 
 std::unordered_set<K> numbers;
 template <typename T>
-void create_random_keys(T *h_keys, M *h_metas, int KEY_NUM) {
+void create_random_keys(T* h_keys, M* h_metas, int KEY_NUM) {
   std::random_device rd;
   std::mt19937_64 eng(rd());
   std::uniform_int_distribution<T> distr;
@@ -798,14 +796,14 @@ int main() {
   int found_num = 0;
   std::unordered_map<int, int> size2length;
 
-  K *h_keys;
-  K *h_dump_keys;
-  M *h_metas;
-  Vector *h_vectors;
-  Vector *h_dump_vectors;
-  size_t *h_size;
+  K* h_keys;
+  K* h_dump_keys;
+  M* h_metas;
+  Vector* h_vectors;
+  Vector* h_dump_vectors;
+  size_t* h_size;
   size_t h_counter;
-  bool *h_found;
+  bool* h_found;
 
   cudaMallocHost(&h_keys, KEY_NUM * sizeof(K));               // 8MB
   cudaMallocHost(&h_dump_keys, KEY_NUM * sizeof(K));          // 8MB
@@ -819,35 +817,35 @@ int main() {
 
   create_random_keys<K>(h_keys, h_metas, KEY_NUM);
 
-  Table *d_table;
-  K *d_keys;
-  K *d_dump_keys;
-  M *d_metas = nullptr;
-  Vector *d_vectors;
-  Vector *d_dump_vectors;
-  Vector **d_vectors_ptr;
-  size_t *d_size;
-  size_t *d_counter;
-  bool *d_found;
-  int *d_offset;
+  Table* d_table;
+  K* d_keys;
+  K* d_dump_keys;
+  M* d_metas = nullptr;
+  Vector* d_vectors;
+  Vector* d_dump_vectors;
+  Vector** d_vectors_ptr;
+  size_t* d_size;
+  size_t* d_counter;
+  bool* d_found;
+  int* d_offset;
 
-  cudaMalloc(&d_dump_keys, KEY_NUM * sizeof(K));           // 8MB
-  cudaMalloc(&d_keys, KEY_NUM * sizeof(K));                // 8MB
-  cudaMalloc(&d_metas, KEY_NUM * sizeof(M));               // 8MB
-  cudaMalloc(&d_vectors, KEY_NUM * sizeof(Vector));        // 256MB
-  cudaMalloc(&d_dump_vectors, KEY_NUM * sizeof(Vector));   // 256MB
-  cudaMalloc(&d_vectors_ptr, KEY_NUM * sizeof(Vector *));  // 8MB
-  cudaMalloc(&d_size, BUCKETS_NUM * sizeof(size_t));       // 8MB
-  cudaMalloc(&d_found, KEY_NUM * sizeof(bool));            // 4MB
-  cudaMalloc(&d_offset, KEY_NUM * sizeof(int));            // 4MB
-  cudaMalloc(&d_counter, sizeof(size_t));                  // 4MB
+  cudaMalloc(&d_dump_keys, KEY_NUM * sizeof(K));          // 8MB
+  cudaMalloc(&d_keys, KEY_NUM * sizeof(K));               // 8MB
+  cudaMalloc(&d_metas, KEY_NUM * sizeof(M));              // 8MB
+  cudaMalloc(&d_vectors, KEY_NUM * sizeof(Vector));       // 256MB
+  cudaMalloc(&d_dump_vectors, KEY_NUM * sizeof(Vector));  // 256MB
+  cudaMalloc(&d_vectors_ptr, KEY_NUM * sizeof(Vector*));  // 8MB
+  cudaMalloc(&d_size, BUCKETS_NUM * sizeof(size_t));      // 8MB
+  cudaMalloc(&d_found, KEY_NUM * sizeof(bool));           // 4MB
+  cudaMalloc(&d_offset, KEY_NUM * sizeof(int));           // 4MB
+  cudaMalloc(&d_counter, sizeof(size_t));                 // 4MB
 
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
   cudaMemcpy(d_metas, h_metas, KEY_NUM * sizeof(M), cudaMemcpyHostToDevice);
 
   cudaMemset(d_vectors, 1, KEY_NUM * sizeof(Vector));
   cudaMemset(d_dump_vectors, 0, KEY_NUM * sizeof(Vector));
-  cudaMemset(d_vectors_ptr, 0, KEY_NUM * sizeof(Vector *));
+  cudaMemset(d_vectors_ptr, 0, KEY_NUM * sizeof(Vector*));
   cudaMemset(d_found, 0, KEY_NUM * sizeof(bool));
   cudaMemset(d_offset, 0, KEY_NUM * sizeof(int));
   cudaMemset(d_counter, 0, sizeof(size_t));
@@ -963,7 +961,7 @@ int main() {
     for (int i = 0; i < KEY_NUM; i++) {
       for (int j = 0; j < DIM; j++) {
         V tmp = h_dump_vectors[i].value[j];
-        int *tmp_int = reinterpret_cast<int *>((V *)(&tmp));
+        int* tmp_int = reinterpret_cast<int*>((V*)(&tmp));
         if (*tmp_int != 16843009) error_dump_count++;
       }
     }
@@ -977,7 +975,7 @@ int main() {
     // lookup test
     N = BUCKETS_SIZE * KEY_NUM;
     NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
-    cudaMemset(d_vectors_ptr, 0, KEY_NUM * sizeof(Vector *));
+    cudaMemset(d_vectors_ptr, 0, KEY_NUM * sizeof(Vector*));
     cudaMemset(d_found, 0, KEY_NUM * sizeof(bool));
     cudaMemset(d_metas, 0, KEY_NUM * sizeof(M));
     cudaDeviceSynchronize();
@@ -1074,7 +1072,7 @@ int main() {
   for (int i = 0; i < KEY_NUM; i++) {
     for (int j = 0; j < DIM; j++) {
       V tmp = h_vectors[i].value[j];
-      int *tmp_int = reinterpret_cast<int *>((V *)(&tmp));
+      int* tmp_int = reinterpret_cast<int*>((V*)(&tmp));
       if (*tmp_int != 16843009) error_count++;
     }
   }

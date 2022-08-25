@@ -16,6 +16,7 @@
 # lint-as: python3
 
 from abc import ABCMeta
+from enum import Enum
 from tensorflow.python.eager import context
 from tensorflow.python.ops import gen_parsing_ops
 from merlin_kv import tensorflow as mkv
@@ -57,12 +58,44 @@ class KVCreator(object, metaclass=ABCMeta):
     raise NotImplementedError('create function must be implemented')
 
 
+class MerlinKVEvictStrategy(object):
+  LRU = int(0)
+  CUTOMIZED = int(1)
+
+
 class MerlinKVConfig(object):
 
-  def __init__(self):
-    """ MerlinKVConfig include nothing for parameter default satisfied.
+  def __init__(
+      self,
+      init_capacity=0,
+      max_capacity=0,
+      max_hbm_for_vectors=0,
+      max_bucket_size=128,
+      max_load_factor=0.5,
+      device_id=0,
+      evict_strategy=MerlinKVEvictStrategy.LRU,
+  ):
     """
-    pass
+    MerlinKVConfig include nothing for parameter default satisfied.
+
+    Refer to the Merlin-KV TableOptions:
+        struct HashTableOptions {
+          size_t init_capacity = 0;        ///< The initial capacity of the hash table.
+          size_t max_capacity = 0;         ///< The maximum capacity of the hash table.
+          size_t max_hbm_for_vectors = 0;  ///< The maximum HBM for vectors, in bytes.
+          size_t max_bucket_size = 128;    ///< The length of each bucket.
+          float max_load_factor = 0.5f;    ///< The max load factor before rehashing.
+          int device_id = 0;               ///< The ID of device.
+          EvictStrategy evict_strategy = EvictStrategy::kLru;  ///< The evict strategy.
+        };
+    """
+    self.init_capacity = init_capacity
+    self.max_capacity = max_capacity
+    self.max_hbm_for_vectors = max_hbm_for_vectors
+    self.max_bucket_size = max_bucket_size
+    self.max_load_factor = max_load_factor
+    self.device_id = device_id
+    self.evict_strategy = evict_strategy
 
 
 class MerlinKVCreator(KVCreator):
@@ -83,7 +116,11 @@ class MerlinKVCreator(KVCreator):
     self.name = name
     self.checkpoint = checkpoint
     self.init_size = init_size
-    self.config = config
+    if config is not None:
+      self.config = config
+    else:
+      self.config = self.config if self.config else MerlinKVConfig(
+          init_capacity=init_size)
 
     return mkv.MerlinKV(
         key_dtype=key_dtype,
@@ -91,8 +128,8 @@ class MerlinKVCreator(KVCreator):
         default_value=default_value,
         name=name,
         checkpoint=checkpoint,
-        init_size=init_size,
-        config=config,
+        init_size=self.config.init_capacity,
+        config=self.config,
     )
 
   def get_config(self):

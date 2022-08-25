@@ -4,19 +4,18 @@
 #include <thrust/generate.h>
 #include <thrust/random.h>
 #include <thrust/sort.h>
-
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 
-void usage(const char *filename) {
+void usage(const char* filename) {
   printf("Sort the random key-value data set of the given length by key.\n");
   printf("Usage: %s <n>\n", filename);
 }
 
 constexpr int n = 1024 * 1024;
 
-void random_vector(uint64_t *h_vec, size_t N) {
+void random_vector(uint64_t* h_vec, size_t N) {
   static thrust::default_random_engine rng;
   static thrust::uniform_int_distribution<uint64_t> dist;
 
@@ -36,14 +35,14 @@ int main() {
   // TODO: Generate random keys and values on host
   // host_vector<int> ...
   // generate( ...
-  uint64_t *h_keys;
-  uint64_t *h_vals;
-  cudaMallocHost((void **)&h_keys, n * sizeof(uint64_t));
-  cudaMallocHost((void **)&h_vals, n * sizeof(uint64_t));
-  uint64_t *d_keys;
-  uint64_t *d_vals;
-  cudaMalloc((void **)&d_keys, n * sizeof(uint64_t));
-  cudaMalloc((void **)&d_vals, n * sizeof(uint64_t));
+  uint64_t* h_keys;
+  uint64_t* h_vals;
+  cudaMallocHost((void**)&h_keys, n * sizeof(uint64_t));
+  cudaMallocHost((void**)&h_vals, n * sizeof(uint64_t));
+  uint64_t* d_keys;
+  uint64_t* d_vals;
+  cudaMalloc((void**)&d_keys, n * sizeof(uint64_t));
+  cudaMalloc((void**)&d_vals, n * sizeof(uint64_t));
   random_vector(h_keys, n);
   random_vector(h_vals, n);
 

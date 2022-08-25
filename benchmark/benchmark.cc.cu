@@ -18,7 +18,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -27,7 +26,6 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
-
 #include "merlin/initializers.cuh"
 #include "merlin/optimizers.cuh"
 #include "merlin_hashtable.cuh"
@@ -45,7 +43,7 @@ uint64_t getTimestamp() {
       .count();
 }
 template <class K, class M>
-void create_random_keys(K *h_keys, M *h_metas, int key_num_per_op) {
+void create_random_keys(K* h_keys, M* h_metas, int key_num_per_op) {
   std::unordered_set<K> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -65,7 +63,7 @@ void create_random_keys(K *h_keys, M *h_metas, int key_num_per_op) {
 std::string rep(int n) { return std::string(n, ' '); }
 
 template <class K, class M>
-void create_continuous_keys(K *h_keys, M *h_metas, int key_num_per_op,
+void create_continuous_keys(K* h_keys, M* h_metas, int key_num_per_op,
                             K start = 0) {
   for (K i = 0; i < key_num_per_op; i++) {
     h_keys[i] = start + static_cast<K>(i);
@@ -95,10 +93,10 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
     return;
   }
 
-  K *h_keys;
-  M *h_metas;
-  Vector *h_vectors;
-  bool *h_found;
+  K* h_keys;
+  M* h_metas;
+  Vector* h_vectors;
+  bool* h_found;
 
   std::unique_ptr<Table> table_ =
       std::make_unique<Table>(init_capacity,              /* init_capacity */
@@ -118,19 +116,19 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 
   cudaMemset(h_vectors, 0, key_num_per_op * sizeof(Vector));
 
-  K *d_keys;
-  M *d_metas = nullptr;
-  Vector *d_vectors;
-  Vector *d_def_val;
-  Vector **d_vectors_ptr;
-  bool *d_found;
+  K* d_keys;
+  M* d_metas = nullptr;
+  Vector* d_vectors;
+  Vector* d_def_val;
+  Vector** d_vectors_ptr;
+  bool* d_found;
 
-  cudaMalloc(&d_keys, key_num_per_op * sizeof(K));                // 8MB
-  cudaMalloc(&d_metas, key_num_per_op * sizeof(M));               // 8MB
-  cudaMalloc(&d_vectors, key_num_per_op * sizeof(Vector));        // 256MB
-  cudaMalloc(&d_def_val, key_num_per_op * sizeof(Vector));        // 256MB
-  cudaMalloc(&d_vectors_ptr, key_num_per_op * sizeof(Vector *));  // 8MB
-  cudaMalloc(&d_found, key_num_per_op * sizeof(bool));            // 4MB
+  cudaMalloc(&d_keys, key_num_per_op * sizeof(K));               // 8MB
+  cudaMalloc(&d_metas, key_num_per_op * sizeof(M));              // 8MB
+  cudaMalloc(&d_vectors, key_num_per_op * sizeof(Vector));       // 256MB
+  cudaMalloc(&d_def_val, key_num_per_op * sizeof(Vector));       // 256MB
+  cudaMalloc(&d_vectors_ptr, key_num_per_op * sizeof(Vector*));  // 8MB
+  cudaMalloc(&d_found, key_num_per_op * sizeof(bool));           // 4MB
 
   cudaMemcpy(d_keys, h_keys, key_num_per_op * sizeof(K),
              cudaMemcpyHostToDevice);
@@ -139,7 +137,7 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
 
   cudaMemset(d_vectors, 1, key_num_per_op * sizeof(Vector));
   cudaMemset(d_def_val, 2, key_num_per_op * sizeof(Vector));
-  cudaMemset(d_vectors_ptr, 0, key_num_per_op * sizeof(Vector *));
+  cudaMemset(d_vectors_ptr, 0, key_num_per_op * sizeof(Vector*));
   cudaMemset(d_found, 0, key_num_per_op * sizeof(bool));
 
   cudaStream_t stream;
@@ -162,13 +160,13 @@ void test_main(size_t init_capacity = 64 * 1024 * 1024UL,
                cudaMemcpyHostToDevice);
 
     start_insert_or_assign = std::chrono::steady_clock::now();
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+    table_->insert_or_assign(d_keys, reinterpret_cast<float*>(d_vectors),
                              d_metas, key_num_per_op, false, stream);
     end_insert_or_assign = std::chrono::steady_clock::now();
     diff_insert_or_assign = end_insert_or_assign - start_insert_or_assign;
 
     start_find = std::chrono::steady_clock::now();
-    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
+    table_->find(d_keys, reinterpret_cast<float*>(d_vectors), d_found,
                  key_num_per_op, nullptr, stream);
     end_find = std::chrono::steady_clock::now();
     diff_find = end_find - start_find;

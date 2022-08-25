@@ -19,18 +19,17 @@
 #include "merlin_kv/tensorflow/core/kernels/merlin_kv_op_gpu.h"
 // Never
 #include "merlin_kv/tensorflow/core/kernels/lookup_impl/lookup_table_op_gpu.h"
+#include "merlin_kv/tensorflow/core/lib/merlin-kv/cpp/include/merlin_hashtable.cuh"
 // CaseInsensitive
 
 #define EIGEN_USE_GPU
 
 #include <cuda_runtime.h>
 #include <stdlib.h>
-
 #include <cstdlib>
 #include <iomanip>
 #include <type_traits>
 #include <utility>
-
 #include "tensorflow/core/framework/lookup_interface.h"
 #include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/types.h"
@@ -50,21 +49,45 @@ template <class K, class V, class M = uint64_t>
 class MerlinKVOfTensorsGpu final : public LookupInterface {
  public:
   MerlinKVOfTensorsGpu(OpKernelContext* ctx, OpKernel* kernel) {
-    int64 init_size = 0;
+    nv::merlin::HashTableOptions options;
+    int64 init_capacity = 0;
+    int64 max_capacity = 0;
+    int64 max_hbm_for_vectors = 0;
+    int64 max_bucket_size = 0;
+    float max_load_factor = 0;
+    int64 device_id = 0;
+    int64 evict_strategy = 0;
 
-    OP_REQUIRES_OK(ctx, GetNodeAttr(kernel->def(), "init_size", &init_size));
+    OP_REQUIRES_OK(ctx,
+                   GetNodeAttr(kernel->def(), "init_size", &init_capacity));
+    OP_REQUIRES_OK(ctx,
+                   GetNodeAttr(kernel->def(), "max_capacity", &max_capacity));
+    OP_REQUIRES_OK(ctx, GetNodeAttr(kernel->def(), "max_hbm_for_vectors",
+                                    &max_hbm_for_vectors));
+    OP_REQUIRES_OK(
+        ctx, GetNodeAttr(kernel->def(), "max_bucket_size", &max_bucket_size));
+    OP_REQUIRES_OK(
+        ctx, GetNodeAttr(kernel->def(), "max_load_factor", &max_load_factor));
+    OP_REQUIRES_OK(ctx, GetNodeAttr(kernel->def(), "device_id", &device_id));
+    OP_REQUIRES_OK(
+        ctx, GetNodeAttr(kernel->def(), "evict_strategy", &evict_strategy));
 
-    if (init_size == 0) {
+    if (init_capacity == 0) {
       int64 env_var = 0;
       Status status = ReadInt64FromEnvVar("TF_HASHTABLE_INIT_SIZE",
                                           1024 * 8,  // 8192 KV pairs by default
                                           &env_var);
-      min_size_ = (size_t)env_var;
-      max_size_ = (size_t)env_var;
-    } else {
-      min_size_ = init_size;
-      max_size_ = init_size;
+      init_capacity = (size_t)env_var;
     }
+
+    options.init_capacity = init_capacity;
+    options.max_capacity = max_capacity;
+    options.max_hbm_for_vectors = max_hbm_for_vectors;
+    options.max_bucket_size = max_bucket_size;
+    options.max_load_factor = max_load_factor;
+    options.device_id = device_id;
+    options.evict_strategy =
+        static_cast<nv::merlin::EvictStrategy>(evict_strategy);
 
     OP_REQUIRES_OK(ctx,
                    GetNodeAttr(kernel->def(), "value_shape", &value_shape_));
@@ -77,27 +100,34 @@ class MerlinKVOfTensorsGpu final : public LookupInterface {
                 errors::InvalidArgument("The dim of HashTable on GPU should be "
                                         "less than or equal to 200, got ",
                                         runtime_dim_));
-    this->CreateTable(max_size_, &table_);
+    this->CreateTable(&table_, options);
     OP_REQUIRES(ctx, (table_ != nullptr),
                 errors::InvalidArgument("HashTable on GPU is created failed!"));
 
     LOG(INFO) << "HashTable on GPU is created successfully:"
               << " K=" << std::type_index(typeid(K)).name()
               << ", V=" << std::type_index(typeid(V)).name()
-              << ", max_size=" << max_size_ << ", min_size=" << min_size_;
+              << ", init_capacity=" << options.init_capacity
+              << ", max_capacity=" << options.max_capacity
+              << ", max_hbm_for_vectors=" << options.max_hbm_for_vectors
+              << ", max_bucket_size=" << options.max_bucket_size
+              << ", max_load_factor=" << options.max_load_factor
+              << ", device_id=" << options.device_id << ", evict_strategy="
+              << static_cast<int>(options.evict_strategy);
   }
 
   ~MerlinKVOfTensorsGpu() { delete table_; }
 
-  void CreateTable(size_t max_size, gpu::TableWrapperBase<K, V>** pptable) {
+  void CreateTable(gpu::TableWrapperBase<K, V>** pptable,
+                   nv::merlin::HashTableOptions options) {
     if (runtime_dim_ <= 50) {
-      gpu::CreateTable0(max_size, runtime_dim_, pptable);
+      gpu::CreateTable0(runtime_dim_, pptable, options);
     } else if (runtime_dim_ <= 100) {
-      gpu::CreateTable1(max_size, runtime_dim_, pptable);
+      gpu::CreateTable1(runtime_dim_, pptable, options);
     } else if (runtime_dim_ <= 150) {
-      gpu::CreateTable2(max_size, runtime_dim_, pptable);
+      gpu::CreateTable2(runtime_dim_, pptable, options);
     } else if (runtime_dim_ <= 200) {
-      gpu::CreateTable3(max_size, runtime_dim_, pptable);
+      gpu::CreateTable3(runtime_dim_, pptable, options);
     } else {
       *pptable = nullptr;
     }
@@ -451,8 +481,6 @@ class MerlinKVOfTensorsGpu final : public LookupInterface {
 
  private:
   TensorShape value_shape_;
-  size_t max_size_;
-  size_t min_size_;
   size_t runtime_dim_;
   mutable mutex mu_;
   gpu::TableWrapperBase<K, V, M>* table_ = nullptr GUARDED_BY(mu_);

@@ -30,7 +30,7 @@ class RandomNormal final : public Initializer<T> {
       : mean_(mean), stddev_(stddev), seed_(seed) {}
   ~RandomNormal() {}
 
-  void initialize(T *data, size_t len, cudaStream_t stream) override {
+  void initialize(T* data, size_t len, cudaStream_t stream) override {
     random_normal<T>(data, len, stream, mean_, stddev_, seed_);
   }
 

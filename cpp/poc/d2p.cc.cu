@@ -1,6 +1,5 @@
 //
 #include <cuda_runtime.h>
-
 #include <algorithm>
 #include <chrono>
 #include <exception>
@@ -8,7 +7,6 @@
 #include <random>
 #include <thread>
 #include <unordered_set>
-
 #include "merlin/utils.cuh"
 
 using std::cout;
@@ -16,9 +14,9 @@ using std::endl;
 
 class CudaException : public std::runtime_error {
  public:
-  CudaException(const std::string &what) : runtime_error(what) {}
+  CudaException(const std::string& what) : runtime_error(what) {}
 };
-inline void cuda_check_(cudaError_t val, const char *file, int line) {
+inline void cuda_check_(cudaError_t val, const char* file, int line) {
   if (val != cudaSuccess) {
     throw CudaException(std::string(file) + ":" + std::to_string(line) +
                         ": CUDA error " + std::to_string(val) + ": " +
@@ -36,7 +34,7 @@ struct Vector {
   V values[DIM];
 };
 
-void create_random_offset(int *offset, int num, int range) {
+void create_random_offset(int* offset, int num, int range) {
   std::unordered_set<int> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -52,8 +50,8 @@ void create_random_offset(int *offset, int num, int range) {
   }
 }
 
-__global__ void d2h_const_data(const Vector *__restrict src,
-                               Vector **__restrict dst, int N) {
+__global__ void d2h_const_data(const Vector* __restrict src,
+                               Vector** __restrict dst, int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
@@ -65,7 +63,7 @@ __global__ void d2h_const_data(const Vector *__restrict src,
 }
 
 __global__ void d2h_hbm_data(
-    const Vector *__restrict src, Vector **__restrict dst,
+    const Vector* __restrict src, Vector** __restrict dst,
     int N) {  // dst is a set of Vector* in the pinned memory
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -77,13 +75,13 @@ __global__ void d2h_hbm_data(
   }
 }
 
-__global__ void create_fake_ptr(const Vector *__restrict dst,
-                                Vector **__restrict vectors, int *offset,
+__global__ void create_fake_ptr(const Vector* __restrict dst,
+                                Vector** __restrict vectors, int* offset,
                                 int N) {
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if (tid < N) {
-    vectors[tid] = (Vector *)((Vector *)dst + offset[tid]);
+    vectors[tid] = (Vector*)((Vector*)dst + offset[tid]);
   }
 }
 
@@ -135,8 +133,8 @@ int main() {
   int NUM_THREADS = 1024;
   int NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
 
-  int *h_offset;
-  int *d_offset;
+  int* h_offset;
+  int* d_offset;
 
   ConnectMasterSlaveDevice(0, 1);
   ConnectMasterSlaveDevice(1, 0);
@@ -148,11 +146,11 @@ int main() {
   cudaMemset(&h_offset, 0, sizeof(int) * KEY_NUM);
   cudaMemset(&d_offset, 0, sizeof(int) * KEY_NUM);
 
-  Vector *src;
-  Vector *dst;
-  Vector **dst_ptr;
+  Vector* src;
+  Vector* dst;
+  Vector** dst_ptr;
   cudaMalloc(&src, KEY_NUM * sizeof(Vector));
-  cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector *));
+  cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector*));
 
   CUDA_CHECK(cudaSetDevice(slave_device_id));
   cudaMalloc(&dst, vectors_size);

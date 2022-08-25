@@ -52,10 +52,6 @@ class MerlinKV(LookupInterface):
   print(out.eval())
   ```
   """
-  default_merlin_kv_params = {
-      "max_size": 0xffffffffffff,
-      "mode": "HBM_HMEM",
-  }
 
   def __init__(
       self,
@@ -98,6 +94,7 @@ class MerlinKV(LookupInterface):
     self._value_dtype = value_dtype
     self._meta_dtype = dtypes.int64
     self._init_size = init_size
+    self._config = config
     self._name = name
 
     self._shared_name = None
@@ -136,6 +133,12 @@ class MerlinKV(LookupInterface):
         value_dtype=self._value_dtype,
         value_shape=self._default_value.get_shape(),
         init_size=self._init_size,
+        max_capacity=self._config.max_capacity,
+        max_hbm_for_vectors=self._config.max_hbm_for_vectors,
+        max_bucket_size=self._config.max_bucket_size,
+        max_load_factor=self._config.max_load_factor,
+        device_id=self._config.device_id,
+        evict_strategy=self._config.evict_strategy,
         name=self._name,
     )
 

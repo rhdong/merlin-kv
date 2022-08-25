@@ -18,21 +18,18 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <algorithm>
 #include <iostream>
 #include <random>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
-
 #include "merlin/initializers.cuh"
 #include "merlin/optimizers.cuh"
 #include "merlin_hashtable.cuh"
 
-
 template <class K, class M>
-void create_random_keys(K *h_keys, M *h_metas, int KEY_NUM) {
+void create_random_keys(K* h_keys, M* h_metas, int KEY_NUM) {
   std::unordered_set<K> numbers;
   std::random_device rd;
   std::mt19937_64 eng(rd());
@@ -49,7 +46,6 @@ void create_random_keys(K *h_keys, M *h_metas, int KEY_NUM) {
   }
 }
 
-
 template <class V, size_t DIM>
 struct ValueArray {
   V value[DIM];
@@ -62,7 +58,7 @@ constexpr uint64_t TEST_TIMES = 1;
 constexpr uint64_t DIM = 2;
 
 template <class K, class M>
-__forceinline__ __device__ bool erase_if_pred(const K &key, const M &meta) {
+__forceinline__ __device__ bool erase_if_pred(const K& key, const M& meta) {
   return ((key % 2) == 1);
 }
 
@@ -76,10 +72,10 @@ template <class K, class M>
 __device__ Table::Pred pred = erase_if_pred<K, M>;
 
 int test_main() {
-  K *h_keys;
-  M *h_metas;
-  Vector *h_vectors;
-  bool *h_found;
+  K* h_keys;
+  M* h_metas;
+  Vector* h_vectors;
+  bool* h_found;
 
   std::unique_ptr<Table> table_ =
       std::make_unique<Table>(INIT_SIZE,          /* init_size */
@@ -101,27 +97,27 @@ int test_main() {
 
   create_random_keys<K, M>(h_keys, h_metas, KEY_NUM);
 
-  K *d_keys;
-  M *d_metas = nullptr;
-  Vector *d_vectors;
-  Vector *d_def_val;
-  Vector **d_vectors_ptr;
-  bool *d_found;
+  K* d_keys;
+  M* d_metas = nullptr;
+  Vector* d_vectors;
+  Vector* d_def_val;
+  Vector** d_vectors_ptr;
+  bool* d_found;
   size_t dump_counter = 0;
 
-  cudaMalloc(&d_keys, KEY_NUM * sizeof(K));                // 8MB
-  cudaMalloc(&d_metas, KEY_NUM * sizeof(M));               // 8MB
-  cudaMalloc(&d_vectors, KEY_NUM * sizeof(Vector));        // 256MB
-  cudaMalloc(&d_def_val, KEY_NUM * sizeof(Vector));        // 256MB
-  cudaMalloc(&d_vectors_ptr, KEY_NUM * sizeof(Vector *));  // 8MB
-  cudaMalloc(&d_found, KEY_NUM * sizeof(bool));            // 4MB
+  cudaMalloc(&d_keys, KEY_NUM * sizeof(K));               // 8MB
+  cudaMalloc(&d_metas, KEY_NUM * sizeof(M));              // 8MB
+  cudaMalloc(&d_vectors, KEY_NUM * sizeof(Vector));       // 256MB
+  cudaMalloc(&d_def_val, KEY_NUM * sizeof(Vector));       // 256MB
+  cudaMalloc(&d_vectors_ptr, KEY_NUM * sizeof(Vector*));  // 8MB
+  cudaMalloc(&d_found, KEY_NUM * sizeof(bool));           // 4MB
 
   cudaMemcpy(d_keys, h_keys, KEY_NUM * sizeof(K), cudaMemcpyHostToDevice);
   cudaMemcpy(d_metas, h_metas, KEY_NUM * sizeof(M), cudaMemcpyHostToDevice);
 
   cudaMemset(d_vectors, 1, KEY_NUM * sizeof(Vector));
   cudaMemset(d_def_val, 2, KEY_NUM * sizeof(Vector));
-  cudaMemset(d_vectors_ptr, 0, KEY_NUM * sizeof(Vector *));
+  cudaMemset(d_vectors_ptr, 0, KEY_NUM * sizeof(Vector*));
   cudaMemset(d_found, 0, KEY_NUM * sizeof(bool));
 
   cudaStream_t stream;
@@ -136,7 +132,7 @@ int test_main() {
 
     std::cout << "before insert_or_assign: total_size = " << total_size
               << std::endl;
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+    table_->insert_or_assign(d_keys, reinterpret_cast<float*>(d_vectors),
                              d_metas, KEY_NUM, false, stream);
 
     total_size = table_->size(stream);
@@ -144,18 +140,18 @@ int test_main() {
               << std::endl;
 
     cudaMemset(d_vectors, 2, KEY_NUM * sizeof(Vector));
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+    table_->insert_or_assign(d_keys, reinterpret_cast<float*>(d_vectors),
                              d_metas, KEY_NUM, stream);
 
     total_size = table_->size(stream);
     std::cout << "after 2nd insert_or_assign: total_size = " << total_size
               << std::endl;
 
-    table_->find(d_keys, reinterpret_cast<float *>(d_vectors), d_found, KEY_NUM,
+    table_->find(d_keys, reinterpret_cast<float*>(d_vectors), d_found, KEY_NUM,
                  nullptr, stream);
 
-    table_->accum(d_keys, reinterpret_cast<float *>(d_vectors), d_found,
-                  KEY_NUM, false, stream);
+    table_->accum(d_keys, reinterpret_cast<float*>(d_vectors), d_found, KEY_NUM,
+                  false, stream);
 
     total_size = table_->size(stream);
     std::cout << "after accum: total_size = " << total_size << std::endl;
@@ -170,12 +166,11 @@ int test_main() {
     std::cout << "after clear: total_size = " << total_size << std::endl;
 
     table_->clear(stream);
-    table_->insert_or_assign(d_keys, reinterpret_cast<float *>(d_vectors),
+    table_->insert_or_assign(d_keys, reinterpret_cast<float*>(d_vectors),
                              d_metas, KEY_NUM, false, stream);
 
-    dump_counter = table_->dump(d_keys, reinterpret_cast<float *>(d_vectors), 0,
+    dump_counter = table_->dump(d_keys, reinterpret_cast<float*>(d_vectors), 0,
                                 table_->capacity(), stream);
-
   }
   cudaStreamDestroy(stream);
 

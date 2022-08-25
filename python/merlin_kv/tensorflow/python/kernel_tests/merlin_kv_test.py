@@ -1162,12 +1162,22 @@ class VariableTest(test.TestCase):
         raw_test_metas = [i for i in range(test_meta_start, test_meta_end)]
         test_metas = constant_op.constant(raw_test_metas, dtypes.int64)
 
+        mkv_config = mkv.MerlinKVConfig(
+            init_capacity=256,
+            max_capacity=256,
+            max_hbm_for_vectors=0,
+            max_bucket_size=128,
+            max_load_factor=0.7,
+            device_id=0,
+            evict_strategy=mkv.MerlinKVEvictStrategy.CUTOMIZED)
+        mkv_creator = mkv.MerlinKVCreator(mkv_config)
         table = mkv.get_variable("y002" + str(allow_duplicated_keys),
                                  dtypes.int64,
                                  dtypes.float32,
                                  dim=DIM,
                                  init_size=256,
-                                 initializer=default_val)
+                                 initializer=default_val,
+                                 kv_creator=mkv_creator)
         self.assertAllEqual(0, self.evaluate(table.size()))
 
         self.evaluate(
@@ -1289,12 +1299,23 @@ class VariableTest(test.TestCase):
             default_val, default_val, default_val, default_val
         ] + raw_test_values[4:]
 
+        mkv_config = mkv.MerlinKVConfig(
+            init_capacity=256,
+            max_capacity=256,
+            max_hbm_for_vectors=0,
+            max_bucket_size=128,
+            max_load_factor=0.7,
+            device_id=0,
+            evict_strategy=mkv.MerlinKVEvictStrategy.CUTOMIZED)
+        mkv_creator = mkv.MerlinKVCreator(mkv_config)
+
         table = mkv.get_variable("y004" + str(allow_duplicated_keys),
                                  dtypes.int64,
                                  dtypes.float32,
                                  dim=DIM,
                                  init_size=256,
-                                 initializer=default_val)
+                                 initializer=default_val,
+                                 kv_creator=mkv_creator)
         self.assertAllEqual(0, self.evaluate(table.size()))
 
         self.evaluate(
@@ -1373,12 +1394,23 @@ class VariableTest(test.TestCase):
                              axis=1), dtypes.float32) / (1.0 * start)
         metas = keys
 
+        mkv_config = mkv.MerlinKVConfig(
+            init_capacity=capacity,
+            max_capacity=capacity,
+            max_hbm_for_vectors=0,
+            max_bucket_size=128,
+            max_load_factor=0.7,
+            device_id=0,
+            evict_strategy=mkv.MerlinKVEvictStrategy.CUTOMIZED)
+        mkv_creator = mkv.MerlinKVCreator(mkv_config)
+
         table = mkv.get_variable("y006" + str(allow_duplicated_keys),
                                  dtypes.int64,
                                  dtypes.float32,
                                  dim=DIM,
                                  init_size=capacity,
-                                 initializer=default_val)
+                                 initializer=default_val,
+                                 kv_creator=mkv_creator)
         self.assertAllEqual(0, self.evaluate(table.size()))
         np.set_printoptions(suppress=True)
 
@@ -1472,12 +1504,23 @@ class VariableTest(test.TestCase):
         removed_keys = constant_op.constant(raw_removed_keys, dtypes.int64)
         remainded_keys = constant_op.constant(raw_remained_keys, dtypes.int64)
 
+        mkv_config = mkv.MerlinKVConfig(
+            init_capacity=256,
+            max_capacity=256,
+            max_hbm_for_vectors=0,
+            max_bucket_size=128,
+            max_load_factor=0.7,
+            device_id=0,
+            evict_strategy=mkv.MerlinKVEvictStrategy.CUTOMIZED)
+        mkv_creator = mkv.MerlinKVCreator(mkv_config)
+
         table = mkv.get_variable("yz003" + str(i),
                                  dtypes.int64,
                                  dtypes.float32,
                                  dim=DIM,
                                  init_size=256,
-                                 initializer=default_val)
+                                 initializer=default_val,
+                                 kv_creator=mkv_creator)
         self.assertAllEqual(0, self.evaluate(table.size()))
 
         self.evaluate(table.upsert(base_keys, base_values, base_metas))

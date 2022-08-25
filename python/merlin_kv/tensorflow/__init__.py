@@ -19,6 +19,7 @@ __all__ = [
     'MerlinKV',
     'MerlinKVConfig',
     'MerlinKVCreator',
+    'MerlinKVEvictStrategy',
     'Variable',
     'get_variable',
 ]
@@ -27,6 +28,7 @@ from merlin_kv.tensorflow.python.ops.kv_creator import (
     KVCreator,
     MerlinKVConfig,
     MerlinKVCreator,
+    MerlinKVEvictStrategy,
 )
 from merlin_kv.tensorflow.python.ops.merlin_kv_ops import (
     MerlinKV,)
