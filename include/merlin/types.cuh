@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <cuda/std/semaphore>
 
 namespace nv {
@@ -86,7 +87,7 @@ using EraseIfPredictInternal =
  * The abstract class of KV file.
  *
  * @tparam K The data type of the key.
- * @tparam V The data type of the vector's item type.
+ * @tparam V The data type of the vector's elements.
  *         The item data type should be a basic data type of C++/CUDA.
  * @tparam M The data type for `meta`.
  *           The currently supported data type is only `uint64_t`.
@@ -97,8 +98,8 @@ template <class K, class V, class M, size_t D>
 class BaseKVFile {
  public:
   virtual ~BaseKVFile() {}
-  virtual ssize_t Read(size_t n, K* keys, V* vectors, M* metas) = 0;
-  virtual ssize_t Write(size_t n, const K* keys, const V* vectors,
+  virtual int64_t read(size_t n, K* keys, V* vectors, M* metas) = 0;
+  virtual int64_t write(size_t n, const K* keys, const V* vectors,
                         const M* metas) = 0;
 };
 
