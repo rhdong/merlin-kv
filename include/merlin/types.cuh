@@ -84,7 +84,10 @@ using EraseIfPredictInternal =
     );
 
 /**
- * The abstract class of KV file.
+ * The abstract class of KV file. It is an interface between the
+ * nv::merlin::HashTable and a file, where the table can save to the
+ * file or load from the file, by overriding the `read` and `write`
+ * method.
  *
  * @tparam K The data type of the key.
  * @tparam V The data type of the vector's elements.
@@ -98,7 +101,33 @@ template <class K, class V, class M, size_t D>
 class BaseKVFile {
  public:
   virtual ~BaseKVFile() {}
+
+  /**
+   * Read from file and fill into the keys, values, and metas buffer.
+   * When calling save/load method from table, can assume that the
+   * received buffer for keys, vectors, and metas are automatically
+   * pre-allocated.
+   *
+   * @param n The number of kv pairs expect to read.
+   * @param keys The pointer to received buffer for keys.
+   * @param vectors The pointer to received buffer for vectors.
+   * @param metas The pointer to received buffer for metas.
+   *
+   * @return The size of kv pairs successfully read.
+   */
   virtual int64_t read(size_t n, K* keys, V* vectors, M* metas) = 0;
+
+  /**
+   * Write keys, values, metas from table to the file. It defines
+   * an abstract method to get batch of kv pairs and write into file.
+   *
+   * @param n The number of kv pairs to be written.
+   * @param keys The keys will be written to file.
+   * @param vectors The vectors of values will be written to file.
+   * @param metas The metas will be written to file.
+   *
+   * @return The size of kv pairs successfully written.
+   */
   virtual int64_t write(size_t n, const K* keys, const V* vectors,
                         const M* metas) = 0;
 };
