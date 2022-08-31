@@ -67,6 +67,32 @@ __global__ void create_fake_ptr(const Vector* __restrict dst,
     vectors[tid] = (Vector*)((Vector*)dst + offset[tid]);
   }
 }
+template<typename T = void>
+struct masked_greater
+{
+  /*! \typedef first_argument_type
+   *  \brief The type of the function object's first argument.
+   */
+  typedef T first_argument_type;
+
+  /*! \typedef second_argument_type
+   *  \brief The type of the function object's second argument.
+   */
+  typedef T second_argument_type;
+
+  /*! \typedef result_type
+   *  \brief The type of the function object's result;
+   */
+  typedef bool result_type;
+
+  /*! Function call operator. The return value is <tt>lhs > rhs</tt>.
+   */
+  __host__ __device__
+  constexpr bool operator()(const T &lhs, const T &rhs) const
+  {
+    return lhs > rhs;
+  }
+}; // end greater
 
 int main() {
   constexpr int KEY_NUM = 1024 * 1024;

@@ -15,6 +15,7 @@ void usage(const char* filename) {
 
 constexpr int n = 1024 * 1024;
 
+
 void random_vector(uint64_t* h_vec, size_t N) {
   static thrust::default_random_engine rng;
   static thrust::uniform_int_distribution<uint64_t> dist;
@@ -24,9 +25,81 @@ void random_vector(uint64_t* h_vec, size_t N) {
 
 using namespace thrust;
 
-// TODO: Please refer to sorting examples:
-// http://code.google.com/p/thrust/
-// http://code.google.com/p/thrust/wiki/QuickStartGuide#Sorting
+#define THRUST_FWD(x) ::std::forward<decltype(x)>(x)
+
+#define THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION(func, impl)                  \
+  template <>                                                                  \
+  struct func<void>                                                            \
+  {                                                                            \
+    template <typename T1, typename T2>                                        \
+    __host__ __device__                                                        \
+    constexpr auto operator()(T1&& t1, T2&& t2) const                          \
+    {                                                                          \
+      return impl;                                                             \
+    }                                                                          \
+  }
+
+#define THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(func, op)                 \
+  THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION(                                   \
+    func, THRUST_FWD(t1) op THRUST_FWD(t2))
+
+template<typename T = void>
+struct masked_less
+{
+  /*! \typedef first_argument_type
+   *  \brief The type of the function object's first argument.
+   */
+  typedef T first_argument_type;
+
+  /*! \typedef second_argument_type
+   *  \brief The type of the function object's second argument.
+   */
+  typedef T second_argument_type;
+
+  /*! \typedef result_type
+   *  \brief The type of the function object's result;
+   */
+  typedef bool result_type;
+
+  /*! Function call operator. The return value is <tt>lhs < rhs</tt>.
+   */
+  __thrust_exec_check_disable__
+  __host__ __device__
+  constexpr bool operator()(const T &lhs, const T &rhs) const
+  {
+    return (lhs & 0xFFFFFFFFFFFF) < (rhs & 0xFFFFFFFFFFFF);
+  }
+}; // end less
+
+THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(masked_less, <);
+
+//template<typename T = void>
+//struct masked_less
+//{
+//  /*! \typedef first_argument_type
+//   *  \brief The type of the function object's first argument.
+//   */
+//  typedef T first_argument_type;
+//
+//  /*! \typedef second_argument_type
+//   *  \brief The type of the function object's second argument.
+//   */
+//  typedef T second_argument_type;
+//
+//  /*! \typedef result_type
+//   *  \brief The type of the function object's result;
+//   */
+//  typedef bool result_type;
+//
+//  /*! Function call operator. The return value is <tt>lhs < rhs</tt>.
+//   */
+//  __thrust_exec_check_disable__
+//  __host__ __device__
+//  constexpr bool operator()(const T &lhs, const T &rhs) const
+//  {
+//    return (lhs & 0xFFFFFFFFFFFF) < (rhs & & 0xFFFFFFFFFFFF);
+//  }
+//}; // end less
 
 int main() {
   constexpr int TEST_TIMES = 1;
@@ -66,7 +139,7 @@ int main() {
   thrust::device_ptr<uint64_t> d_keys_ptr(d_keys);
   thrust::device_ptr<uint64_t> d_vals_ptr(d_vals);
   thrust::sort_by_key(d_keys_ptr, d_keys_ptr + n, d_vals_ptr,
-                      thrust::greater<uint64_t>());
+                      masked_less<uint64_t>());
   //   cudaDeviceSynchronize();
   diff_test = std::chrono::steady_clock::now() - start_test;
   printf("[timing] sort d2h=%.2fms\n", diff_test.count() * 1000 / TEST_TIMES);
