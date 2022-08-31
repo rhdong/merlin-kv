@@ -71,7 +71,7 @@ struct masked_less
   __host__ __device__
   constexpr bool operator()(const T &lhs, const T &rhs) const
   {
-    return (lhs & 0xFFFFFFFFF000) < (rhs & 0xFFFFFFFFF000);
+    return (lhs & 0xFFFFFFFFFFFF) < (rhs & 0xFFFFFFFFFFFF);
   }
 }; // end less
 
