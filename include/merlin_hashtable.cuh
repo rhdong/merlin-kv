@@ -77,10 +77,10 @@ namespace merlin {
 //
 // THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(masked_less, <);
 
-template <class T>
+template <class T1, class T2>
 struct masked_less {
-  __host__ __device__ constexpr bool operator()(const T&& lhs,
-                                                const T&& rhs) const {
+  __host__ __device__ constexpr bool operator()(const T1&& lhs,
+                                                const T2&& rhs) const {
     return (lhs & 0xFFFFFFFFFFFF) < (rhs & 0xFFFFFFFFFFFF);
   }
 }
