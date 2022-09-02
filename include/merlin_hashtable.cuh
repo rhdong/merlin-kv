@@ -83,7 +83,7 @@ struct masked_less {
                                                 const T2&& rhs) const {
     return (lhs & 0xFFFFFFFFFFFF) < (rhs & 0xFFFFFFFFFFFF);
   }
-}
+};
 
 /**
  * @brief Enumeration of the eviction strategies.
