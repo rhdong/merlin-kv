@@ -112,7 +112,7 @@ using EraseIfPredict = bool (*)(
  * @tparam D The dimension of the vectors.
  *
  */
-template <class K, class V, class M, size_t D>
+template <class K, class V, class M, size_t D, class Hash = MurmurHash3_32<T>>
 class HashTable {
  public:
   /**
