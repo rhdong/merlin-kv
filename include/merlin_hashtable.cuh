@@ -354,7 +354,7 @@ class HashTable {
         auto policy = thrust::cuda::par.on(stream);
 #endif
         thrust::sort_by_key(policy, d_dst_ptr, d_dst_ptr + N, d_src_offset_ptr,
-                            masked_less<uint64_t>());
+                            masked_less<uint64_t, uint64_t>());
       }
 
       {
