@@ -29,53 +29,61 @@
 namespace nv {
 namespace merlin {
 
-#define THRUST_FWD(x) ::std::forward<decltype(x)>(x)
+//#define THRUST_FWD(x) ::std::forward<decltype(x)>(x)
+//
+//#define THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION(func, impl) \
+//  template <> \
+//  struct func<void> \
+//  { \
+//    template <typename T1, typename T2> \
+//    __host__ __device__ \
+//    constexpr auto operator()(T1&& t1, T2&& t2) const \
+//    { \
+//      return impl; \
+//    } \
+//  }
+//
+//#define THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(func, op) \
+//  THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION( \
+//    func, THRUST_FWD(t1) op THRUST_FWD(t2))
+//
+// template<typename T = void>
+// struct masked_less
+//{
+//  /*! \typedef first_argument_type
+//   *  \brief The type of the function object's first argument.
+//   */
+//  typedef T first_argument_type;
+//
+//  /*! \typedef second_argument_type
+//   *  \brief The type of the function object's second argument.
+//   */
+//  typedef T second_argument_type;
+//
+//  /*! \typedef result_type
+//   *  \brief The type of the function object's result;
+//   */
+//  typedef bool result_type;
+//
+//  /*! Function call operator. The return value is <tt>lhs < rhs</tt>.
+//   */
+//  __thrust_exec_check_disable__
+//  __host__ __device__
+//  constexpr bool operator()(const T &lhs, const T &rhs) const
+//  {
+//    return (lhs & 0xFFFFFFFFFFFF) < (rhs & 0xFFFFFFFFFFFF);
+//  }
+//}; // end less
+//
+// THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(masked_less, <);
 
-#define THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION(func, impl)                  \
-  template <>                                                                  \
-  struct func<void>                                                            \
-  {                                                                            \
-    template <typename T1, typename T2>                                        \
-    __host__ __device__                                                        \
-    constexpr auto operator()(T1&& t1, T2&& t2) const                          \
-    {                                                                          \
-      return impl;                                                             \
-    }                                                                          \
-  }
-
-#define THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(func, op)                 \
-  THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION(                                   \
-    func, THRUST_FWD(t1) op THRUST_FWD(t2))
-
-template<typename T = void>
-struct masked_less
-{
-  /*! \typedef first_argument_type
-   *  \brief The type of the function object's first argument.
-   */
-  typedef T first_argument_type;
-
-  /*! \typedef second_argument_type
-   *  \brief The type of the function object's second argument.
-   */
-  typedef T second_argument_type;
-
-  /*! \typedef result_type
-   *  \brief The type of the function object's result;
-   */
-  typedef bool result_type;
-
-  /*! Function call operator. The return value is <tt>lhs < rhs</tt>.
-   */
-  __thrust_exec_check_disable__
-  __host__ __device__
-  constexpr bool operator()(const T &lhs, const T &rhs) const
-  {
+template <class T>
+struct masked_less {
+  __host__ __device__ constexpr bool operator()(const T&& lhs,
+                                                const T&& rhs) const {
     return (lhs & 0xFFFFFFFFFFFF) < (rhs & 0xFFFFFFFFFFFF);
   }
-}; // end less
-
-THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(masked_less, <);
+}
 
 /**
  * @brief Enumeration of the eviction strategies.
