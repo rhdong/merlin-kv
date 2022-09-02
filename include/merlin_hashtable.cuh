@@ -63,7 +63,7 @@ namespace merlin {
 
 
 template <typename T = void>
-struct masked_less<void>
+struct masked_less
 {
   template <typename T1, typename T2>
   __host__ __device__
