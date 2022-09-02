@@ -47,8 +47,8 @@ namespace merlin {
 //  THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION( \
 //    func, THRUST_FWD(t1) op THRUST_FWD(t2))
 //
-//template<typename T = void>
-//struct masked_less
+// template<typename T = void>
+// struct masked_less
 //{
 //  __thrust_exec_check_disable__
 //  __host__ __device__
@@ -58,20 +58,15 @@ namespace merlin {
 //  }
 //}; // end less
 //
-//THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(masked_less, <);
-
-
+// THRUST_BINARY_FUNCTOR_VOID_SPECIALIZATION_OP(masked_less, <);
 
 template <typename T = void>
-struct masked_less
-{
+struct masked_less {
   template <typename T1, typename T2>
-  __host__ __device__
-  constexpr auto operator()(T1& lhs, T2& rhs) const
-  {
+  __host__ __device__ constexpr auto operator()(T1& lhs, T2& rhs) const {
     return (lhs & 0xFFFFFFFFFFFF) < (rhs & 0xFFFFFFFFFFFF);
   }
-}
+};
 
 /**
  * @brief Enumeration of the eviction strategies.
