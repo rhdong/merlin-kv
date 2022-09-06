@@ -64,7 +64,7 @@ template <class T>
 class DeviceMemory final : public CudaMemory<T> {
  public:
   DeviceMemory(size_t n, cudaStream_t stream = 0) : CudaMemory<T>(n, stream) {
-    CUDA_CHECK(cudaMallocAsync(&CudaMemory<T>::ptr_, CudaMemory<T>::size(),
+    CUDA_CHECK(cudaMallocAsync((void **)&CudaMemory<T>::ptr_, CudaMemory<T>::size(),
                                CudaMemory<T>::stream()));
   };
 
@@ -80,7 +80,7 @@ class PinnedMemory final : public CudaMemory<T> {
  public:
   explicit PinnedMemory(size_t n, cudaStream_t stream = 0)
       : CudaMemory<T>(n, stream) {
-    CUDA_CHECK(cudaMallocHost(&CudaMemory<T>::ptr_, CudaMemory<T>::size()));
+    CUDA_CHECK(cudaMallocHost((void **)&CudaMemory<T>::ptr_, CudaMemory<T>::size()));
   };
 
   T& operator[](size_t idx) { return CudaMemory<T>::ptr_[idx]; }
@@ -98,7 +98,7 @@ class ManagedMemory final : public CudaMemory<T> {
   explicit ManagedMemory(size_t n, bool need_memset = false,
                          cudaStream_t stream = 0)
       : CudaMemory<T>(n, stream) {
-    CUDA_CHECK(cudaMallocManaged(&CudaMemory<T>::ptr_, CudaMemory<T>::size()));
+    CUDA_CHECK(cudaMallocManaged((void **)&CudaMemory<T>::ptr_, CudaMemory<T>::size()));
   };
 
   T& operator[](size_t idx) { return CudaMemory<T>::ptr_[idx]; }
