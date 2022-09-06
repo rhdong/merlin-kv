@@ -203,6 +203,7 @@ void test_basic() {
   CUDA_CHECK(cudaStreamCreate(&stream));
   DeviceMemory<size_t> dump_counter = DeviceMemory<size_t>(1, stream);
   dump_counter.memset(0);
+  CUDA_CHECK(cudaStreamSynchronize(stream));
 
   uint64_t total_size = 0;
   for (int i = 0; i < TEST_TIMES; i++) {
