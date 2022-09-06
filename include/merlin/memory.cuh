@@ -43,10 +43,8 @@ class CudaMemory {
   }
 
   void memset(int value) {
-    if (ptr_ != nullptr) {
-      std::cout << "n_ for memset" << n_ << std::endl;
-      CUDA_CHECK(cudaMemsetAsync(ptr_, value, sizeof(T) * n_, stream_));
-    }
+    std::cout << "n_ for memset" << n_ << std::endl;
+    CUDA_CHECK(cudaMemsetAsync(ptr_, value, sizeof(T) * n_, stream_));
   }
 
   size_t size() const { return sizeof(T) * n_; }
