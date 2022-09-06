@@ -724,6 +724,22 @@ class HashTable {
     CudaCheckError();
   }
 
+  size_type export_batch(size_type n, size_type offset,
+                         key_type* keys,              // (n)
+                         value_type* values,          // (n, DIM)
+                         meta_type* metas = nullptr,  // (n)
+                         cudaStream_t stream = 0) const {
+    size_type* d_counter = nullptr;
+    size_type h_counter = 0;
+    CUDA_CHECK(cudaMallocAsync(&d_counter, sizeof(size_type), stream));
+    CUDA_CHECK(cudaMemsetAsync(d_counter, 0, sizeof(size_type), stream));
+    export_batch(n, offset, d_counter, keys, values, metas, stream);
+    CUDA_CHECK(cudaMemcpyAsync(&h_counter, d_counter, sizeof(size_type),
+                               cudaMemcpyDeviceToHost, stream));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    return h_counter;
+  }
+
   /**
    * @brief Exports a certain number of the key-value-meta tuples which match
    * specified condition from the hash table.
