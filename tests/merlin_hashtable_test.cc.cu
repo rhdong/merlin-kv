@@ -179,7 +179,7 @@ void test_basic() {
   Vector* d_def_val;
   Vector** d_vectors_ptr;
   bool* d_found;
-  size_t dump_counter = 0;
+  PinnedMemory<size_t> dump_counter = PinnedMemory<size_t>(1);
 
   CUDA_CHECK(cudaMalloc(&d_keys, KEY_NUM * sizeof(K)));
   CUDA_CHECK(cudaMalloc(&d_metas, KEY_NUM * sizeof(M)));
@@ -259,11 +259,10 @@ void test_basic() {
     table->insert_or_assign(
         KEY_NUM, d_keys, reinterpret_cast<float*>(d_vectors), d_metas, stream);
 
-    dump_counter = table->export_batch(table->capacity(), 0, d_keys,
-                                       reinterpret_cast<float*>(d_vectors),
-                                       d_metas, stream);
+    table->export_batch(table->capacity(), 0, dump_counter.get(), d_keys,
+                        reinterpret_cast<float*>(d_vectors), d_metas, stream);
     CUDA_CHECK(cudaStreamSynchronize(stream));
-    ASSERT_TRUE(dump_counter == KEY_NUM);
+    ASSERT_TRUE(dump_counter[0] == KEY_NUM);
   }
   CUDA_CHECK(cudaStreamDestroy(stream));
 
@@ -435,7 +434,6 @@ void test_rehash() {
   M* d_metas = nullptr;
   Vector* d_vectors;
   bool* d_found;
-  size_t dump_counter = 0;
 
   CUDA_CHECK(cudaMalloc(&d_keys, KEY_NUM * sizeof(K)));
   CUDA_CHECK(cudaMalloc(&d_metas, KEY_NUM * sizeof(M)));
@@ -444,6 +442,9 @@ void test_rehash() {
 
   cudaStream_t stream;
   CUDA_CHECK(cudaStreamCreate(&stream));
+
+  DeviceMemory<size_t> dump_counter = DeviceMemory<size_t>(1, stream);
+  PinnedMemory<size_t> p_dump_counter = PinnedMemory<size_t>(1, stream);
 
   uint64_t total_size = 0;
   for (int i = 0; i < TEST_TIMES; i++) {
@@ -472,11 +473,11 @@ void test_rehash() {
     CUDA_CHECK(cudaDeviceSynchronize());
     ASSERT_TRUE(total_size == BUCKET_MAX_SIZE);
 
-    dump_counter = table->export_batch(table->capacity(), 0, d_keys,
-                                       reinterpret_cast<float*>(d_vectors),
-                                       d_metas, stream);
+    table->export_batch(table->capacity(), 0, dump_counter.get(), d_keys,
+                        reinterpret_cast<float*>(d_vectors), d_metas, stream);
     CUDA_CHECK(cudaStreamSynchronize(stream));
-    ASSERT_TRUE(dump_counter == BUCKET_MAX_SIZE);
+    p_dump_counter.copy_from(&dump_counter);
+    ASSERT_TRUE(p_dump_counter[0] == BUCKET_MAX_SIZE);
 
     table->reserve(MAX_CAPACITY, stream);
     CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -673,6 +674,8 @@ void test_export_if_batch() {
   PinnedMemory<M> h_metas = PinnedMemory<M>(KEY_NUM);
   PinnedMemory<Vector> h_vectors = PinnedMemory<Vector>(KEY_NUM);
 
+  PinnedMemory<size_t> dump_counter = PinnedMemory<size_t>(1);
+
   DeviceMemory<K> d_keys = DeviceMemory<K>(KEY_NUM);
   DeviceMemory<M> d_metas = DeviceMemory<M>(KEY_NUM);
   DeviceMemory<Vector> d_vectors = DeviceMemory<Vector>(KEY_NUM);
@@ -682,12 +685,10 @@ void test_export_if_batch() {
     create_random_keys<K, M, float, DIM>(
         h_keys.get(), h_metas.get(), reinterpret_cast<float*>(h_vectors.get()),
         KEY_NUM);
-    CUDA_CHECK(cudaMemcpy(d_keys.get(), h_keys.get(), KEY_NUM * sizeof(K),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_metas.get(), h_metas.get(), KEY_NUM * sizeof(M),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_vectors.get(), h_vectors.get(),
-                          KEY_NUM * sizeof(Vector), cudaMemcpyHostToDevice));
+
+    d_keys.copy_from(&h_keys);
+    d_metas.copy_from(&h_metas);
+    d_vectors.copy_from(&h_vectors);
 
     total_size = table->size(stream);
     CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -705,19 +706,24 @@ void test_export_if_batch() {
     K pattern = 100;
     M threshold = h_metas.get()[size_t(KEY_NUM / 2)];
 
-    size_t dump_counter = table->export_if_batch(
+    table->export_if_batch(
         ExportIfPred<K, M>, pattern, threshold, table->capacity(), 0,
-        d_keys.get(), reinterpret_cast<float*>(d_vectors.get()), d_metas.get(),
-        stream);
+        dump_counter.get(), d_keys.get(),
+        reinterpret_cast<float*>(d_vectors.get()), d_metas.get(), stream);
 
-    CUDA_CHECK(cudaMemset(h_metas.get(), 0, KEY_NUM * sizeof(M)));
-    CUDA_CHECK(cudaMemset(h_vectors.get(), 0, KEY_NUM * sizeof(Vector)));
-    CUDA_CHECK(cudaMemcpy(h_metas.get(), d_metas.get(), KEY_NUM * sizeof(M),
-                          cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(h_vectors.get(), d_vectors.get(),
-                          KEY_NUM * sizeof(Vector), cudaMemcpyDeviceToHost));
+    size_t expected_export_count = 0;
+    for (int i = 0; i < KEY_NUM; i++) {
+      if (h_metas[i] > threshold) expected_export_count++;
+    }
+    ASSERT_TRUE(expected_export_count == dump_counter[0]);
 
-    for (int i = 0; i < dump_counter; i++) {
+    h_metas.memset(0);
+    h_vectors.memset(0);
+
+    h_metas.copy_from(&d_metas);
+    h_vectors.copy_from(&d_vectors);
+
+    for (int i = 0; i < dump_counter[0]; i++) {
       ASSERT_TRUE(h_metas.get()[i] > threshold);
     }
 

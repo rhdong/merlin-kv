@@ -23,22 +23,36 @@ namespace merlin {
 namespace memory {
 
 template <class T>
-class DeviceMemory {
+class CudaMemory {
  public:
-  DeviceMemory(size_t n, bool need_memset = false, cudaStream_t stream = 0) {
+  CudaMemory(size_t n, cudaStream_t stream = 0) {
     n_ = n;
     stream_ = stream;
-    CUDA_CHECK(cudaMallocAsync(&ptr_, sizeof(T) * n_, stream_));
-    CUDA_CHECK(cudaMemsetAsync(ptr_, 0, sizeof(T) * n_, stream_));
-  };
+  }
 
-  ~DeviceMemory() {
+  virtual ~CudaMemory() {}
+
+  T* get() const { return ptr_; }
+
+  void copy_from(const CudaMemory<T>* src) {
+    MERLIN_CHECK(
+        size() == src->size(),
+        "[CudaMemory] `src` should have save size with this instance.");
+    CUDA_CHECK(cudaMemcpyAsync(ptr_, src->get(), sizeof(T) * n_,
+                               cudaMemcpyDefault, stream_));
+  }
+
+  void memset(int value) {
     if (ptr_ != nullptr) {
-      CUDA_CHECK(cudaFreeAsync(ptr_, stream_));
+      CUDA_CHECK(cudaMemsetAsync(ptr_, value, sizeof(T) * n_, stream_));
     }
   }
 
-  inline T* get() { return ptr_; }
+  size_t size() const { return sizeof(T) * n_; }
+  cudaStream_t stream() const { return stream_; }
+  void stream(cudaStream_t stream) { return stream_ = stream; }
+
+  void stream_sync() {}
 
  private:
   size_t n_;
@@ -47,27 +61,55 @@ class DeviceMemory {
 };
 
 template <class T>
-class PinnedMemory {
+class DeviceMemory final : public CudaMemory<T> {
  public:
-  PinnedMemory(size_t n, bool need_memset = false, cudaStream_t stream = 0) {
-    n_ = n;
-    stream_ = stream;
-    CUDA_CHECK(cudaMallocHost(&ptr_, sizeof(T) * n_));
-    CUDA_CHECK(cudaMemsetAsync(&ptr_, 0, sizeof(T) * n_, stream_));
+  DeviceMemory(size_t n, cudaStream_t stream = 0) : CudaMemory<T>(n, stream) {
+    T* ptr = CudaMemory<T>::get();
+    CUDA_CHECK(
+        cudaMallocAsync(&ptr, CudaMemory<T>::size(), CudaMemory<T>::stream()));
   };
 
-  ~PinnedMemory() {
-    if (ptr_ != nullptr) {
-      CUDA_CHECK(cudaFreeHost(ptr_));
+  ~DeviceMemory() override {
+    if (CudaMemory<T>::get() != nullptr) {
+      CUDA_CHECK(cudaFreeAsync(CudaMemory<T>::get(), CudaMemory<T>::stream()));
     }
   }
+};
 
-  inline T* get() { return ptr_; }
+template <class T>
+class PinnedMemory final : public CudaMemory<T> {
+ public:
+  explicit PinnedMemory(size_t n, cudaStream_t stream = 0)
+      : CudaMemory<T>(n, stream) {
+    T* ptr = CudaMemory<T>::get();
+    CUDA_CHECK(cudaMallocHost(&ptr, CudaMemory<T>::size()));
+  };
 
- private:
-  size_t n_;
-  T* ptr_ = nullptr;
-  cudaStream_t stream_;
+  T& operator[](size_t idx) { return CudaMemory<T>::get()[idx]; }
+
+  ~PinnedMemory() override {
+    if (CudaMemory<T>::get() != nullptr) {
+      CUDA_CHECK(cudaFreeHost(CudaMemory<T>::get()));
+    }
+  }
+};
+
+template <class T>
+class ManagedMemory final : public CudaMemory<T> {
+ public:
+  explicit ManagedMemory(size_t n, bool need_memset = false,
+                         cudaStream_t stream = 0)
+      : CudaMemory<T>(n, stream) {
+    CUDA_CHECK(cudaMallocManaged(&CudaMemory<T>::get(), CudaMemory<T>::size()));
+  };
+
+  T& operator[](size_t idx) { return CudaMemory<T>::get()[idx]; }
+
+  ~ManagedMemory() override {
+    if (CudaMemory<T>::get() != nullptr) {
+      CUDA_CHECK(cudaFree(CudaMemory<T>::get()));
+    }
+  }
 };
 
 }  // namespace memory
