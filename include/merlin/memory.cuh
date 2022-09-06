@@ -32,7 +32,7 @@ class CudaMemory {
 
   virtual ~CudaMemory() {}
 
-  //  T* get() const { return ptr_; }
+  T* get() const { return ptr_; }
 
   void copy_from(const CudaMemory<T>* src) {
     MERLIN_CHECK(
