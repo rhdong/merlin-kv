@@ -16,20 +16,32 @@
 
 #pragma once
 
-#include <new>
+#include "utils.cuh"
 
 namespace nv {
 namespace merlin {
 
-struct managed {
-  static void* operator new(size_t n) {
-    void* ptr = 0;
-    cudaError_t result = cudaMallocManaged(&ptr, n);
-    if (cudaSuccess != result || 0 == ptr) throw std::bad_alloc();
-    return ptr;
+template <class T>
+class cudaPinnedMemory {
+ public:
+  HashTable(size_t n, bool need_memset = false, cudaStream_t stream = 0) {
+    stream_ = stream;
+    CUDA_CHECK(cudaMallocHost(&ptr_, n));
+    CUDA_CHECK(cudaMemsetAsync(&ptr_, n, stream_));
+  };
+
+  ~HashTable() {
+    if (ptr_ != nullptr) {
+      CUDA_CHECK(cudaFreeHost(ptr_));
+    }
   }
 
-  static void operator delete(void* ptr) noexcept { cudaFree(ptr); }
+  T* get() { return ptr_; }
+
+ private:
+  size_t size_;
+  T* ptr_ = nullptr;
+  cudaStream_t stream_;
 };
 
 }  // namespace merlin

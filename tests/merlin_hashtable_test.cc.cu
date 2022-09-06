@@ -24,7 +24,10 @@
 #include <thread>
 #include <unordered_set>
 #include <vector>
+#include "merlin/memory.cuh"
 #include "merlin_hashtable.cuh"
+
+using namespace nv::merlin::memory;
 
 uint64_t getTimestamp() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -124,15 +127,24 @@ using Table = nv::merlin::HashTable<K, float, M, DIM>;
 using TableOptions = nv::merlin::HashTableOptions;
 
 template <class K, class M>
-__forceinline__ __device__ bool erase_if_pred(const K& key, const M& meta,
+__forceinline__ __device__ bool erase_if_pred(const K& key, M& meta,
                                               const K& pattern,
                                               const M& threshold) {
   return ((key & 0x7f > pattern) && (meta > threshold));
 }
 
-/* A demo of Pred for erase_if */
 template <class K, class M>
-__device__ Table::Pred pred = erase_if_pred<K, M>;
+__device__ Table::Pred EraseIfPred = erase_if_pred<K, M>;
+
+template <class K, class M>
+__forceinline__ __device__ bool export_if_pred(const K& key, M& meta,
+                                               const K& pattern,
+                                               const M& threshold) {
+  return meta > threshold;
+}
+
+template <class K, class M>
+__device__ Table::Pred ExportIfPred = export_if_pred<K, M>;
 
 void test_basic() {
   constexpr uint64_t INIT_CAPACITY = 64 * 1024 * 1024UL;
@@ -340,7 +352,8 @@ void test_erase_if_pred() {
 
     K pattern = 100;
     M threshold = 0;
-    size_t erase_num = table->erase_if(pred<K, M>, pattern, threshold, stream);
+    size_t erase_num =
+        table->erase_if(EraseIfPred<K, M>, pattern, threshold, stream);
     total_size = table->size(stream);
     CUDA_CHECK(cudaStreamSynchronize(stream));
     ASSERT_TRUE((erase_num + total_size) == BUCKET_MAX_SIZE);
@@ -637,9 +650,92 @@ void test_dynamic_rehash_on_multi_threads() {
   ASSERT_TRUE(table->capacity() == MAX_CAPACITY);
 }
 
+void test_export_if_batch() {
+  constexpr uint64_t INIT_CAPACITY = 256UL;
+  constexpr uint64_t MAX_CAPACITY = INIT_CAPACITY;
+  constexpr uint64_t KEY_NUM = 128UL;
+  constexpr uint64_t TEST_TIMES = 1;
+
+  TableOptions options;
+
+  options.init_capacity = INIT_CAPACITY;
+  options.max_capacity = MAX_CAPACITY;
+  options.max_hbm_for_vectors = nv::merlin::GB(16);
+  options.evict_strategy = nv::merlin::EvictStrategy::kCustomized;
+
+  std::unique_ptr<Table> table = std::make_unique<Table>();
+  table->init(options);
+
+  cudaStream_t stream;
+  CUDA_CHECK(cudaStreamCreate(&stream));
+
+  PinnedMemory<K> h_keys = PinnedMemory<K>(KEY_NUM);
+  PinnedMemory<M> h_metas = PinnedMemory<M>(KEY_NUM);
+  PinnedMemory<Vector> h_vectors = PinnedMemory<Vector>(KEY_NUM);
+
+  DeviceMemory<K> d_keys = DeviceMemory<K>(KEY_NUM);
+  DeviceMemory<M> d_metas = DeviceMemory<M>(KEY_NUM);
+  DeviceMemory<Vector> d_vectors = DeviceMemory<Vector>(KEY_NUM);
+
+  uint64_t total_size = 0;
+  for (int i = 0; i < TEST_TIMES; i++) {
+    create_random_keys<K, M, float, DIM>(
+        h_keys.get(), h_metas.get(), reinterpret_cast<float*>(h_vectors.get()),
+        KEY_NUM);
+    CUDA_CHECK(cudaMemcpy(d_keys.get(), h_keys.get(), KEY_NUM * sizeof(K),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_metas.get(), h_metas.get(), KEY_NUM * sizeof(M),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_vectors.get(), h_vectors.get(),
+                          KEY_NUM * sizeof(Vector), cudaMemcpyHostToDevice));
+
+    total_size = table->size(stream);
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    ASSERT_TRUE(total_size == 0);
+
+    table->insert_or_assign(KEY_NUM, d_keys.get(),
+                            reinterpret_cast<float*>(d_vectors.get()),
+                            d_metas.get(), stream);
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+
+    total_size = table->size(stream);
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    ASSERT_TRUE(total_size == KEY_NUM);
+
+    K pattern = 100;
+    M threshold = h_metas.get()[size_t(KEY_NUM / 2)];
+
+    size_t dump_counter = table->export_if_batch(
+        ExportIfPred<K, M>, pattern, threshold, table->capacity(), 0,
+        d_keys.get(), reinterpret_cast<float*>(d_vectors.get()), d_metas.get(),
+        stream);
+
+    CUDA_CHECK(cudaMemset(h_metas.get(), 0, KEY_NUM * sizeof(M)));
+    CUDA_CHECK(cudaMemset(h_vectors.get(), 0, KEY_NUM * sizeof(Vector)));
+    CUDA_CHECK(cudaMemcpy(h_metas.get(), d_metas.get(), KEY_NUM * sizeof(M),
+                          cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(h_vectors.get(), d_vectors.get(),
+                          KEY_NUM * sizeof(Vector), cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < dump_counter; i++) {
+      ASSERT_TRUE(h_metas.get()[i] > threshold);
+    }
+
+    table->clear(stream);
+    total_size = table->size(stream);
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    ASSERT_TRUE(total_size == 0);
+  }
+  CUDA_CHECK(cudaDeviceSynchronize());
+  CUDA_CHECK(cudaStreamDestroy(stream));
+
+  CudaCheckError();
+}
+
 TEST(MerlinHashTableTest, test_basic) { test_basic(); }
 TEST(MerlinHashTableTest, test_erase_if_pred) { test_erase_if_pred(); }
 TEST(MerlinHashTableTest, test_rehash) { test_rehash(); }
 TEST(MerlinHashTableTest, test_dynamic_rehash_on_multi_threads) {
   test_dynamic_rehash_on_multi_threads();
 }
+TEST(MerlinHashTableTest, test_export_if_batch) { test_export_if_batch(); }
