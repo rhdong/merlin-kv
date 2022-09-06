@@ -43,7 +43,6 @@ class CudaMemory {
   }
 
   void memset(int value) {
-    std::cout << "n_ for memset" << n_ << std::endl;
     CUDA_CHECK(cudaMemsetAsync(ptr_, value, sizeof(T) * n_, stream_));
   }
 
@@ -53,9 +52,11 @@ class CudaMemory {
 
   void stream_sync() {}
 
+ public:
+  T* ptr_ = nullptr;
+
  private:
   size_t n_;
-  T* ptr_ = nullptr;
   cudaStream_t stream_;
 };
 
@@ -63,14 +64,13 @@ template <class T>
 class DeviceMemory final : public CudaMemory<T> {
  public:
   DeviceMemory(size_t n, cudaStream_t stream = 0) : CudaMemory<T>(n, stream) {
-    T* ptr = CudaMemory<T>::get();
     CUDA_CHECK(
-        cudaMallocAsync(&ptr, CudaMemory<T>::size(), CudaMemory<T>::stream()));
+        cudaMallocAsync(&ptr_, CudaMemory<T>::size(), CudaMemory<T>::stream()));
   };
 
   ~DeviceMemory() override {
     if (CudaMemory<T>::get() != nullptr) {
-      CUDA_CHECK(cudaFreeAsync(CudaMemory<T>::get(), CudaMemory<T>::stream()));
+      CUDA_CHECK(cudaFreeAsync(ptr_, CudaMemory<T>::stream()));
     }
   }
 };
@@ -80,15 +80,14 @@ class PinnedMemory final : public CudaMemory<T> {
  public:
   explicit PinnedMemory(size_t n, cudaStream_t stream = 0)
       : CudaMemory<T>(n, stream) {
-    T* ptr = CudaMemory<T>::get();
-    CUDA_CHECK(cudaMallocHost(&ptr, CudaMemory<T>::size()));
+    CUDA_CHECK(cudaMallocHost(&ptr_, CudaMemory<T>::size()));
   };
 
-  T& operator[](size_t idx) { return CudaMemory<T>::get()[idx]; }
+  T& operator[](size_t idx) { return ptr_[idx]; }
 
   ~PinnedMemory() override {
-    if (CudaMemory<T>::get() != nullptr) {
-      CUDA_CHECK(cudaFreeHost(CudaMemory<T>::get()));
+    if (ptr_ != nullptr) {
+      CUDA_CHECK(cudaFreeHost(ptr_));
     }
   }
 };
@@ -99,14 +98,14 @@ class ManagedMemory final : public CudaMemory<T> {
   explicit ManagedMemory(size_t n, bool need_memset = false,
                          cudaStream_t stream = 0)
       : CudaMemory<T>(n, stream) {
-    CUDA_CHECK(cudaMallocManaged(&CudaMemory<T>::get(), CudaMemory<T>::size()));
+    CUDA_CHECK(cudaMallocManaged(&ptr_, CudaMemory<T>::size()));
   };
 
-  T& operator[](size_t idx) { return CudaMemory<T>::get()[idx]; }
+  T& operator[](size_t idx) { return ptr_[idx]; }
 
   ~ManagedMemory() override {
-    if (CudaMemory<T>::get() != nullptr) {
-      CUDA_CHECK(cudaFree(CudaMemory<T>::get()));
+    if (ptr_ != nullptr) {
+      CUDA_CHECK(cudaFree(ptr_));
     }
   }
 };
