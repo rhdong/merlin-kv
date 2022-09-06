@@ -744,9 +744,9 @@ void test_export_if_batch() {
 }
 
 TEST(MerlinHashTableTest, test_basic) { test_basic(); }
-TEST(MerlinHashTableTest, test_erase_if_pred) { test_erase_if_pred(); }
-TEST(MerlinHashTableTest, test_rehash) { test_rehash(); }
-TEST(MerlinHashTableTest, test_dynamic_rehash_on_multi_threads) {
-  test_dynamic_rehash_on_multi_threads();
-}
-TEST(MerlinHashTableTest, test_export_if_batch) { test_export_if_batch(); }
+//TEST(MerlinHashTableTest, test_erase_if_pred) { test_erase_if_pred(); }
+//TEST(MerlinHashTableTest, test_rehash) { test_rehash(); }
+//TEST(MerlinHashTableTest, test_dynamic_rehash_on_multi_threads) {
+//  test_dynamic_rehash_on_multi_threads();
+//}
+//TEST(MerlinHashTableTest, test_export_if_batch) { test_export_if_batch(); }
