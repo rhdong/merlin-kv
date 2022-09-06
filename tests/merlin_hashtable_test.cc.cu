@@ -181,8 +181,6 @@ void test_basic() {
   bool* d_found;
 
 //  size_t dump_counter = 0;
-  DeviceMemory<size_t> dump_counter = DeviceMemory<size_t>(1);
-  dump_counter.memset(0);
 
   CUDA_CHECK(cudaMalloc(&d_keys, KEY_NUM * sizeof(K)));
   CUDA_CHECK(cudaMalloc(&d_metas, KEY_NUM * sizeof(M)));
@@ -203,6 +201,8 @@ void test_basic() {
 
   cudaStream_t stream;
   CUDA_CHECK(cudaStreamCreate(&stream));
+  DeviceMemory<size_t> dump_counter = DeviceMemory<size_t>(1, stream);
+  dump_counter.memset(0);
 
   uint64_t total_size = 0;
   for (int i = 0; i < TEST_TIMES; i++) {
