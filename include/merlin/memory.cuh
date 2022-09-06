@@ -32,7 +32,7 @@ class CudaMemory {
 
   virtual ~CudaMemory() {}
 
-  T* get() const { return ptr_; }
+  //  T* get() const { return ptr_; }
 
   void copy_from(const CudaMemory<T>* src) {
     MERLIN_CHECK(
@@ -64,12 +64,12 @@ template <class T>
 class DeviceMemory final : public CudaMemory<T> {
  public:
   DeviceMemory(size_t n, cudaStream_t stream = 0) : CudaMemory<T>(n, stream) {
-    CUDA_CHECK(
-        cudaMallocAsync(&ptr_, CudaMemory<T>::size(), CudaMemory<T>::stream()));
+    CUDA_CHECK(cudaMallocAsync(&CudaMemory<T>::ptr_, CudaMemory<T>::size(),
+                               CudaMemory<T>::stream()));
   };
 
   ~DeviceMemory() override {
-    if (CudaMemory<T>::get() != nullptr) {
+    if (CudaMemory<T>::ptr_ != nullptr) {
       CUDA_CHECK(cudaFreeAsync(ptr_, CudaMemory<T>::stream()));
     }
   }
@@ -80,14 +80,14 @@ class PinnedMemory final : public CudaMemory<T> {
  public:
   explicit PinnedMemory(size_t n, cudaStream_t stream = 0)
       : CudaMemory<T>(n, stream) {
-    CUDA_CHECK(cudaMallocHost(&ptr_, CudaMemory<T>::size()));
+    CUDA_CHECK(cudaMallocHost(&CudaMemory<T>::ptr_, CudaMemory<T>::size()));
   };
 
-  T& operator[](size_t idx) { return ptr_[idx]; }
+  T& operator[](size_t idx) { return CudaMemory<T>::ptr_[idx]; }
 
   ~PinnedMemory() override {
-    if (ptr_ != nullptr) {
-      CUDA_CHECK(cudaFreeHost(ptr_));
+    if (CudaMemory<T>::ptr_ != nullptr) {
+      CUDA_CHECK(cudaFreeHost(CudaMemory<T>::ptr_));
     }
   }
 };
@@ -98,14 +98,14 @@ class ManagedMemory final : public CudaMemory<T> {
   explicit ManagedMemory(size_t n, bool need_memset = false,
                          cudaStream_t stream = 0)
       : CudaMemory<T>(n, stream) {
-    CUDA_CHECK(cudaMallocManaged(&ptr_, CudaMemory<T>::size()));
+    CUDA_CHECK(cudaMallocManaged(&CudaMemory<T>::ptr_, CudaMemory<T>::size()));
   };
 
-  T& operator[](size_t idx) { return ptr_[idx]; }
+  T& operator[](size_t idx) { return CudaMemory<T>::ptr_[idx]; }
 
   ~ManagedMemory() override {
-    if (ptr_ != nullptr) {
-      CUDA_CHECK(cudaFree(ptr_));
+    if (CudaMemory<T>::ptr_ != nullptr) {
+      CUDA_CHECK(cudaFree(CudaMemory<T>::ptr_));
     }
   }
 };
