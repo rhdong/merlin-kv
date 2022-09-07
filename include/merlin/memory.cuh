@@ -47,7 +47,9 @@ class CudaMemory {
   }
 
   size_t size() const { return sizeof(T) * n_; }
-  cudaStream_t stream() const { return stream_; }
+  cudaStream_t stream() const {
+    return cudaStreamQuery(stream_) == cudaSuccess ? stream_ : 0;
+  }
   void stream(cudaStream_t stream) { return stream_ = stream; }
 
   void stream_sync() {}
@@ -61,13 +63,15 @@ template <class T>
 class DeviceMemory final : public CudaMemory<T> {
  public:
   DeviceMemory(size_t n, cudaStream_t stream = 0) : CudaMemory<T>(n, stream) {
+    std::cout << "steam " << stream << " " << CudaMemory<T>::stream()
+              << std::endl;
     CUDA_CHECK(
         cudaMallocAsync(&ptr_, CudaMemory<T>::size(), CudaMemory<T>::stream()));
   };
 
   ~DeviceMemory() override {
     if (ptr_ != nullptr) {
-      CUDA_CHECK(cudaFree(ptr_));
+      CUDA_CHECK(cudaFreeAsync(ptr_, CudaMemory<T>::stream()));
     }
   }
   T* get() const override { return ptr_; }
