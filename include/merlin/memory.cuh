@@ -32,7 +32,7 @@ class CudaMemory {
 
   virtual ~CudaMemory() {}
 
-  virtual T* get() const {}
+  virtual T* get() const { return nullptr;}
 
   void copy_from(const CudaMemory<T>* src) {
     MERLIN_CHECK(
@@ -43,7 +43,7 @@ class CudaMemory {
   }
 
   void memset(int value) {
-    CUDA_CHECK(cudaMemsetAsync(ptr_, value, sizeof(T) * n_, stream_));
+    CUDA_CHECK(cudaMemsetAsync(get(), value, sizeof(T) * n_, stream_));
   }
 
   size_t size() const { return sizeof(T) * n_; }
@@ -66,7 +66,7 @@ class DeviceMemory final : public CudaMemory<T> {
   };
 
   ~DeviceMemory() override {
-    if (CudaMemory<T>::ptr_ != nullptr) {
+    if (ptr_ != nullptr) {
       CUDA_CHECK(cudaFreeAsync(&ptr_, CudaMemory<T>::stream()));
     }
   }
