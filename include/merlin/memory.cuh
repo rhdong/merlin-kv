@@ -61,14 +61,13 @@ template <class T>
 class DeviceMemory final : public CudaMemory<T> {
  public:
   DeviceMemory(size_t n, cudaStream_t stream = 0) : CudaMemory<T>(n, stream) {
-    std::cout << "steam " << stream << " " << CudaMemory<T>::stream() << std::endl;
     CUDA_CHECK(
-        cudaMallocAsync(&ptr_, CudaMemory<T>::size(), stream));
+        cudaMallocAsync(&ptr_, CudaMemory<T>::size(), CudaMemory<T>::stream()));
   };
 
   ~DeviceMemory() override {
     if (ptr_ != nullptr) {
-      CUDA_CHECK(cudaFreeAsync(ptr_, CudaMemory<T>::stream()));
+      CUDA_CHECK(cudaFree(ptr_));
     }
   }
   T* get() const override { return ptr_; }
