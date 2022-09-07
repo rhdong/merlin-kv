@@ -67,7 +67,7 @@ class DeviceMemory final : public CudaMemory<T> {
 
   ~DeviceMemory() override {
     if (ptr_ != nullptr) {
-      CUDA_CHECK(cudaFreeAsync(&ptr_, CudaMemory<T>::stream()));
+      CUDA_CHECK(cudaFreeAsync(ptr_, CudaMemory<T>::stream()));
     }
   }
   T* get() const { return ptr_; }
