@@ -61,7 +61,7 @@ template <class T>
 class DeviceMemory final : public CudaMemory<T> {
  public:
   DeviceMemory(size_t n, cudaStream_t stream = 0) : CudaMemory<T>(n, stream) {
-    std::cout << "steam " << stream << " " << stream_ << std::endl;
+    std::cout << "steam " << stream << " " << CudaMemory<T>::stream() << std::endl;
     CUDA_CHECK(
         cudaMallocAsync(&ptr_, CudaMemory<T>::size(), stream));
   };
