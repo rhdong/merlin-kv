@@ -32,7 +32,7 @@ class CudaMemory {
 
   virtual ~CudaMemory() {}
 
-  virtual T* get() const { return nullptr;}
+  virtual T* get() const { return nullptr; }
 
   void copy_from(const CudaMemory<T>* src) {
     MERLIN_CHECK(
@@ -70,7 +70,7 @@ class DeviceMemory final : public CudaMemory<T> {
       CUDA_CHECK(cudaFreeAsync(ptr_, CudaMemory<T>::stream()));
     }
   }
-  T* get() const { return ptr_; }
+  T* get() const override { return ptr_; }
 
  private:
   T* ptr_ = nullptr;
@@ -86,7 +86,7 @@ class PinnedMemory final : public CudaMemory<T> {
 
   T& operator[](size_t idx) { return ptr_[idx]; }
 
-  T* get() const { return ptr_; }
+  T* get() const override { return ptr_; }
 
   ~PinnedMemory() override {
     if (ptr_ != nullptr) {
@@ -109,7 +109,7 @@ class ManagedMemory final : public CudaMemory<T> {
 
   T& operator[](size_t idx) { return ptr_[idx]; }
 
-  T* get() const { return ptr_; }
+  T* get() const override { return ptr_; }
 
   ~ManagedMemory() override {
     if (ptr_ != nullptr) {
