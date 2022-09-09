@@ -58,6 +58,52 @@ __global__ void d2h_hbm_data(
   }
 }
 
+void mthd_memcpy_one(Vector** __restrict dst, Vector* __restrict src,
+                     int handled_size, int trunk_size) {
+  for (int i = handled_size; i < handled_size + trunk_size; i++) {
+    memcpy(dst[i], src + i, sizeof(Vector));
+  }
+}
+
+void mthd_memcpy(Vector** __restrict dst, Vector* __restrict src, size_t N,
+                 int n_worker = 8) {
+  std::chrono::time_point<std::chrono::steady_clock> start_test;
+  std::chrono::duration<double> diff_test;
+
+  start_test = std::chrono::steady_clock::now();
+
+  std::vector<std::thread> thds;
+  if (n_worker < 1) std::cerr << "at least 1 worker for memcpy\n";
+
+  size_t trunk_size = N / n_worker;
+  size_t handled_size = 0;
+  for (int i = 0; i < n_worker - 1; i++) {
+    thds.push_back(
+        std::thread(mthd_memcpy_one, dst, src, handled_size, trunk_size));
+    handled_size += trunk_size;
+  }
+
+  size_t remaining = N - handled_size;
+  thds.push_back(
+      std::thread(mthd_memcpy_one, dst, src, handled_size, remaining));
+
+  diff_test = std::chrono::steady_clock::now() - start_test;
+  printf("[timing] mthd_memcpy create threads %f.2ms\n",
+         diff_test.count() * 1000);
+
+  start_test = std::chrono::steady_clock::now();
+  for (int i = 0; i < n_worker; i++) {
+    thds[i].join();
+  }
+  diff_test = std::chrono::steady_clock::now() - start_test;
+  printf("[timing] mthd_memcpy execute threads %f.2ms\n",
+         diff_test.count() * 1000);
+}
+
+void d2h_hbm_data_cpu(Vector** __restrict dst, Vector* __restrict src, int N) {
+  mthd_memcpy(dst, src, N);
+}
+
 __global__ void create_fake_ptr(const Vector* __restrict dst,
                                 Vector** __restrict vectors, int* offset,
                                 int N) {
@@ -70,7 +116,7 @@ __global__ void create_fake_ptr(const Vector* __restrict dst,
 
 int main() {
   constexpr int KEY_NUM = 1024 * 1024;
-  constexpr int INIT_SIZE = KEY_NUM * 128;
+  constexpr int INIT_SIZE = KEY_NUM * 1024;
   constexpr int N = KEY_NUM * DIM;
   constexpr int TEST_TIMES = 1;
   constexpr size_t vectors_size = INIT_SIZE * sizeof(Vector);
@@ -89,8 +135,8 @@ int main() {
   Vector* src;
   Vector* dst;
   Vector** dst_ptr;
-  cudaMalloc(&src, KEY_NUM * sizeof(Vector));
-  cudaMalloc(&dst_ptr, KEY_NUM * sizeof(Vector*));
+  cudaMallocHost(&src, KEY_NUM * sizeof(Vector));
+  cudaMallocHost(&dst_ptr, KEY_NUM * sizeof(Vector*));
   cudaMallocHost(&dst, vectors_size);
 
   create_random_offset(h_offset, KEY_NUM, INIT_SIZE);
@@ -102,7 +148,7 @@ int main() {
   cudaDeviceSynchronize();
   start_test = std::chrono::steady_clock::now();
   for (int i = 0; i < TEST_TIMES; i++) {
-    d2h_const_data<<<NUM_BLOCKS, NUM_THREADS>>>(src, dst_ptr, N);
+    // d2h_const_data<<<NUM_BLOCKS, NUM_THREADS>>>(src, dst_ptr, N);
   }
   cudaDeviceSynchronize();
   diff_test = std::chrono::steady_clock::now() - start_test;
@@ -111,18 +157,33 @@ int main() {
 
   start_test = std::chrono::steady_clock::now();
   for (int i = 0; i < TEST_TIMES; i++) {
-    d2h_hbm_data<<<NUM_BLOCKS, NUM_THREADS>>>(src, dst_ptr, N);
+    // d2h_hbm_data<<<NUM_BLOCKS, NUM_THREADS>>>(src, dst_ptr, N);
   }
   cudaDeviceSynchronize();
   diff_test = std::chrono::steady_clock::now() - start_test;
   printf("[timing] HBM data d2h=%.2fms\n",
          diff_test.count() * 1000 / TEST_TIMES);
 
+  printf("[timing] HBM data d2h=%.2fms\n",
+         KEY_NUM * DIM * sizeof(float) / (diff_test.count()) / (1 << 30));
+
+  start_test = std::chrono::steady_clock::now();
+  for (int i = 0; i < TEST_TIMES; i++) {
+    d2h_hbm_data_cpu(dst_ptr, src, KEY_NUM);
+  }
+  cudaDeviceSynchronize();
+  diff_test = std::chrono::steady_clock::now() - start_test;
+  printf("[timing] HBM data cpu h2h=%.2fms\n",
+         diff_test.count() * 1000 / TEST_TIMES);
+
+  printf("[timing] HBM data cpu h2h=%.2f GB/s\n",
+         KEY_NUM * DIM * sizeof(float) / (diff_test.count()) / (1 << 30));
+
   cudaFreeHost(dst);
   cudaFreeHost(h_offset);
-  cudaFree(dst_ptr);
-  cudaFree(src);
-  cudaFree(d_offset);
+  cudaFreeHost(dst_ptr);
+  cudaFreeHost(src);
+  cudaFreeHost(d_offset);
 
   std::cout << "COMPLETED SUCCESSFULLY\n";
 
